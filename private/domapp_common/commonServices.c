@@ -16,15 +16,6 @@ void formatLong(ULONG value, UBYTE *buf) {
 	*buf++=(UBYTE)(value&0xff);
 }
 
-void formatTime(unsigned long long time, UBYTE *buf) {
-  *buf++ = (UBYTE)((time>>40) & 0xFF);
-  *buf++ = (UBYTE)((time>>32) & 0xFF);
-  *buf++ = (UBYTE)((time>>24) & 0xFF);
-  *buf++ = (UBYTE)((time>>16) & 0xFF);
-  *buf++ = (UBYTE)((time>>8) & 0xFF);
-  *buf++ = (UBYTE)(time & 0xFF);
-}
-
 /* make a big-endian short from a little-endian one */
 void formatShort(USHORT value, UBYTE *buf) {
 	*buf++=(UBYTE)((value>>8)&0xff);

@@ -18,19 +18,14 @@ message back to sender ( marked undeliverable)
 #define TRUE 1
 #define FALSE 0
 
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
 #include "message/message.h"
 #include "msgHandler/msgHandler.h"
 #include "slowControl/domSControl.h"
 #include "expControl/expControl.h"
 #include "dataAccess/moniDataAccess.h"
-#include "dataAccess/dataAccess.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
-#include "domapp_common/version.h"
 #include "msgHandler/MSGHANDLERmessageAPIstatus.h"
 
 /* extern functions */
@@ -61,6 +56,8 @@ extern	ULONG IDMismatch;
 extern  ULONG CRCproblem;
 
 
+static long long time = 0;
+	
 /* struct that contains common service info for
 	this service. */
 COMMON_SERVICE_INFO msgHand;
@@ -99,6 +96,9 @@ void msgHandler(MESSAGE_STRUCT *M)
 	int msgReject=FALSE;
 	UBYTE *data;
 	UBYTE *tmpPtr;
+	int tmpInt;
+	int i;
+	static int imsgs=0;
 
 	/* preset the msgReject flag */
 	msgReject=FALSE;
@@ -330,12 +330,6 @@ void msgHandler(MESSAGE_STRUCT *M)
 			Message_setStatus(M,SUCCESS);
 			Message_setDataLen(M,0);
 			break;
-		    case MSGHAND_GET_DOMAPP_RELEASE:
-		      Message_setStatus(M,SUCCESS);
-		      int len = strlen(DOMAPP_RELEASE);
-		      memcpy(data, DOMAPP_RELEASE, len);
-		      Message_setDataLen(M,len);
-		      break;
 		    /*----------------------------------- */
 		    /* unknown service request (i.e. message */
 		    /*	subtype), respond accordingly */

@@ -26,10 +26,4 @@ typedef struct {
 	ULONG msgProcessingErr;
 } COMMON_SERVICE_INFO;
 
-void formatLong(ULONG value, UBYTE * buf);
-void formatShort(USHORT value, UBYTE *buf);
-void formatTime(unsigned long long time, UBYTE *buf);
-ULONG unformatLong(UBYTE *buf);
-USHORT unformatShort(UBYTE *buf);
-
 #endif

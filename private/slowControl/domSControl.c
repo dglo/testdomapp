@@ -23,7 +23,6 @@ Jan. 14 '04 Jacobsen -- add monitoring actions for state change operations
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
-#include "slowControl/domSControlRoutines.h"
 #include "slowControl/DSCmessageAPIstatus.h"
 #include "domapp_common/DOMstateInfo.h"
 
@@ -258,7 +257,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    /* format up success response */
 		    /* lock, access and unlock */
 		    halWriteDAC(tmpByte,unformatShort(&data[2]));
-		    moniInsertSetDACMessage(hal_FPGA_TEST_get_local_clock(),
+		    moniInsertSetDACMessage(moniGetTimeAsUnsigned(),
 					    tmpByte, 
 					    unformatShort(&data[2]));
 		    Message_setStatus(M,SUCCESS);
@@ -290,7 +289,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		halWriteBaseDAC(PMT_HVreq);
-		moniInsertSetPMT_HV_Message(hal_FPGA_TEST_get_local_clock(),PMT_HVreq);
+		moniInsertSetPMT_HV_Message(moniGetTimeAsUnsigned(),PMT_HVreq);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -307,16 +306,15 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		/* lock, access and unlock */
-                halPowerUpBase();
-                halEnableBaseHV();
-		moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
+		halEnablePMT_HV();
+		moniInsertEnablePMT_HV_Message(moniGetTimeAsUnsigned());
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 	    case DSC_DISABLE_PMT_HV:
 		/* lock, access and unlock */
-		halPowerDownBase();
-		moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());		
+		halDisablePMT_HV();
+		moniInsertDisablePMT_HV_Message(moniGetTimeAsUnsigned());		
 		/* format up success response */
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
@@ -324,7 +322,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 	    case DSC_SET_PMT_HV_LIMIT:
 		/* store maximum value */
 		PMT_HV_max=unformatShort(data);
-		moniInsertSetPMT_HV_Limit_Message(hal_FPGA_TEST_get_local_clock(), PMT_HV_max);
+		moniInsertSetPMT_HV_Limit_Message(moniGetTimeAsUnsigned(), PMT_HV_max);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -454,12 +452,11 @@ void domSControl(MESSAGE_STRUCT *M) {
                 Message_setDataLen(M,0);
                 Message_setStatus(M,SUCCESS);
 		break;
-             case DSC_GET_SCALER_DEADTIME:
-                 formatLong(deadTime,&data[0]);
-                 Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
-                 Message_setStatus(M,SUCCESS);
-                 break;
-
+            case DSC_GET_SCALER_DEADTIME:
+                formatLong(deadTime,&data[0]);
+                Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
+                Message_setStatus(M,SUCCESS);
+                break;
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

@@ -1,7 +1,7 @@
 C_BIN_NAMES :=  domapp domEchoClient runMoniDataAccess
 C_EXCLUDE_NAMES :=
 USES_PROJECTS := hal dom-loader
-USES_TOOLS := m pthread
+USES_TOOLS := pthread
 
 ifeq ("epxa10","$(strip $(PLATFORM))")
   USES_TOOLS := $(filter-out pthread, $(USES_TOOLS))

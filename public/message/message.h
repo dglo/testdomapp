@@ -26,10 +26,7 @@ typedef struct {
 
 #define MESSAGE_FLAG_VALUE 1
 #define PACKET_SIZE_VALUE 8 
-/* JEJ Fixed: driver only does up to 4092 bytes */
-//#define MAXDATA_VALUE (4096 - MSG_HDR_LEN)
-#define MAXDATA_VALUE (4092 - MSG_HDR_LEN)
-
+#define MAXDATA_VALUE (4096 - MSG_HDR_LEN)
 
 #define MEM_ERROR 0
 #define MEM_CREATE_ERROR -1

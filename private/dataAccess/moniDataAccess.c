@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.21 2004-05-20 15:56:20 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.13 2004-01-30 16:50:56 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -12,7 +12,6 @@
 #include "hal/DOM_MB_hal.h"
 #include "message/message.h"
 #include "domapp_common/messageAPIstatus.h"
-#include "domapp_common/commonServices.h"
 #include "slowControl/DSCmessageAPIstatus.h"
 #include "dataAccess/moniDataAccess.h"
 #include "dataAccess/dataAccess.h"
@@ -21,7 +20,6 @@
 #include "msgHandler/msgHandler.h"
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
 
 #ifndef FALSE
 #define FALSE 0
@@ -38,7 +36,7 @@ static int   moniCounterWraps;
 static int   moniOverruns;
 static BOOLEAN moniProvisionalRecFetch = FALSE;
 static int   moniIsInTrouble = 0;
-static unsigned long long moniHdwrIval=0, moniConfIval=0;
+static ULONG moniHdwrIval=0, moniConfIval=0;
 
 static inline void moniLockWriteIndex(void);
 static inline void moniUnlockWriteIndex(void);
@@ -61,10 +59,10 @@ void moniIncWriteIndex(void) {
   }
 }
 
-unsigned long long moniGetHdwrIval(void) { return moniHdwrIval; }
-unsigned long long moniGetConfIval(void) { return moniConfIval; }
+ULONG moniGetHdwrIval(void) { return moniHdwrIval; }
+ULONG moniGetConfIval(void) { return moniConfIval; }
 
-void moniSetIvals(unsigned long long mhi, unsigned long long mci) {
+void moniSetIvals(ULONG mhi, ULONG mci) {
   moniHdwrIval = mhi;
   moniConfIval = mci;
 }
@@ -207,17 +205,6 @@ void moniInsertDiagnosticMessage(char *msg, unsigned long long time, int len) {
   moniInsertRec(&mr);
 }
 
-void mprintf(char *fmt, ...) {
-#define BUFLEN 512
-  char buf[BUFLEN];
-  va_list ap;
-  unsigned long long time = hal_FPGA_TEST_get_local_clock();
-  va_start(ap, fmt);
-  int n = vsnprintf(buf, BUFLEN, fmt, ap);
-  va_end(ap);
-  moniInsertDiagnosticMessage(buf, time, n);
-}
-
 static inline USHORT moniBEShort(unsigned short x) {
   return (   ((x >> 8) & 0xFF) | ((x & 0xFF) << 8) );
 }
@@ -357,7 +344,7 @@ void moniFillBogusHdwrStateMessage(struct moniHardware *mh) {
 
 
 /* Type MONI_TYPE_HDWR_STATE_MSG - log dom state message */
-void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature) {
+void moniInsertHdwrStateMessage(unsigned long long time) {
   unsigned long spe, mpe;
   struct moniRec mr;
   struct moniHardware mh;
@@ -366,35 +353,39 @@ void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature) {
   if(test) {
     moniFillBogusHdwrStateMessage(&mh);
   } else {    
-    mh.STATE_EVENT_VERSION       = 0;
-    mh.spare                     = 0;
-    mh.ADC_VOLTAGE_SUM           = moniBEShort(halReadADC(DOM_HAL_ADC_VOLTAGE_SUM));
-    mh.ADC_5V_POWER_SUPPLY       = moniBEShort(halReadADC(DOM_HAL_ADC_5V_POWER_SUPPLY));
-    mh.ADC_PRESSURE              = moniBEShort(halReadADC(DOM_HAL_ADC_PRESSURE));
-    mh.ADC_5V_CURRENT            = moniBEShort(halReadADC(DOM_HAL_ADC_5V_CURRENT));
-    mh.ADC_3_3V_CURRENT          = moniBEShort(halReadADC(DOM_HAL_ADC_3_3V_CURRENT));
-    mh.ADC_2_5V_CURRENT          = moniBEShort(halReadADC(DOM_HAL_ADC_2_5V_CURRENT));
-    mh.ADC_1_8V_CURRENT          = moniBEShort(halReadADC(DOM_HAL_ADC_1_8V_CURRENT));
-    mh.ADC_MINUS_5V_CURRENT      = moniBEShort(halReadADC(DOM_HAL_ADC_MINUS_5V_CURRENT));
-    mh.DAC_ATWD0_TRIGGER_BIAS    = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_TRIGGER_BIAS));
-    mh.DAC_ATWD0_RAMP_TOP        = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_TOP));
-    mh.DAC_ATWD0_RAMP_RATE       = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_RATE));
-    mh.DAC_ATWD_ANALOG_REF       = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD_ANALOG_REF));
-    mh.DAC_ATWD1_TRIGGER_BIAS    = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_TRIGGER_BIAS));
-    mh.DAC_ATWD1_RAMP_TOP        = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_TOP));
-    mh.DAC_ATWD1_RAMP_RATE       = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_RATE));
-    mh.DAC_PMT_FE_PEDESTAL       = moniBEShort(halReadDAC(DOM_HAL_DAC_PMT_FE_PEDESTAL));
-    mh.DAC_MULTIPLE_SPE_THRESH   = moniBEShort(halReadDAC(DOM_HAL_DAC_MULTIPLE_SPE_THRESH));
-    mh.DAC_SINGLE_SPE_THRESH     = moniBEShort(halReadDAC(DOM_HAL_DAC_SINGLE_SPE_THRESH));
-    mh.DAC_LED_BRIGHTNESS        = moniBEShort(halReadDAC(DOM_HAL_DAC_LED_BRIGHTNESS));
-    mh.DAC_FAST_ADC_REF          = moniBEShort(halReadDAC(DOM_HAL_DAC_FAST_ADC_REF));
-    mh.DAC_INTERNAL_PULSER       = moniBEShort(halReadDAC(DOM_HAL_DAC_INTERNAL_PULSER));
-    mh.DAC_FE_AMP_LOWER_CLAMP    = moniBEShort(halReadDAC(DOM_HAL_DAC_FE_AMP_LOWER_CLAMP));
-    mh.DAC_FL_REF                = moniBEShort(halReadDAC(DOM_HAL_DAC_FL_REF));
-    mh.DAC_MUX_BIAS              = moniBEShort(halReadDAC(DOM_HAL_DAC_MUX_BIAS));
-    mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(halReadBaseDAC());
-    mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadBaseADC());
-    mh.DOM_MB_TEMPERATURE        = moniBEShort(temperature);
+    mh.STATE_EVENT_VERSION    = 0;
+    mh.spare                  = 0;
+    
+    mh.ADC_VOLTAGE_SUM        = moniBEShort(halReadADC(DOM_HAL_ADC_VOLTAGE_SUM));
+    mh.ADC_5V_POWER_SUPPLY    = moniBEShort(halReadADC(DOM_HAL_ADC_5V_POWER_SUPPLY));
+    mh.ADC_PRESSURE           = moniBEShort(halReadADC(DOM_HAL_ADC_PRESSURE));
+    mh.ADC_5V_CURRENT         = moniBEShort(halReadADC(DOM_HAL_ADC_5V_CURRENT));
+    mh.ADC_3_3V_CURRENT       = moniBEShort(halReadADC(DOM_HAL_ADC_3_3V_CURRENT));
+    mh.ADC_2_5V_CURRENT       = moniBEShort(halReadADC(DOM_HAL_ADC_2_5V_CURRENT));
+    mh.ADC_1_8V_CURRENT       = moniBEShort(halReadADC(DOM_HAL_ADC_1_8V_CURRENT));
+    mh.ADC_MINUS_5V_CURRENT   = moniBEShort(halReadADC(DOM_HAL_ADC_MINUS_5V_CURRENT));
+    
+    mh.DAC_ATWD0_TRIGGER_BIAS  =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_TRIGGER_BIAS));
+    mh.DAC_ATWD0_RAMP_TOP      =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_TOP));
+    mh.DAC_ATWD0_RAMP_RATE     =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_RATE));
+    mh.DAC_ATWD_ANALOG_REF     =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD_ANALOG_REF));
+    mh.DAC_ATWD1_TRIGGER_BIAS  =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_TRIGGER_BIAS));
+    mh.DAC_ATWD1_RAMP_TOP      =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_TOP));
+    mh.DAC_ATWD1_RAMP_RATE     =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_RATE));
+    mh.DAC_PMT_FE_PEDESTAL     =  moniBEShort(halReadDAC(DOM_HAL_DAC_PMT_FE_PEDESTAL));
+    mh.DAC_MULTIPLE_SPE_THRESH =  moniBEShort(halReadDAC(DOM_HAL_DAC_MULTIPLE_SPE_THRESH));
+    mh.DAC_SINGLE_SPE_THRESH   =  moniBEShort(halReadDAC(DOM_HAL_DAC_SINGLE_SPE_THRESH));
+    mh.DAC_LED_BRIGHTNESS      =  moniBEShort(halReadDAC(DOM_HAL_DAC_LED_BRIGHTNESS));
+    mh.DAC_FAST_ADC_REF        =  moniBEShort(halReadDAC(DOM_HAL_DAC_FAST_ADC_REF));
+
+    mh.DAC_INTERNAL_PULSER     =  moniBEShort(halReadDAC(DOM_HAL_DAC_INTERNAL_PULSER));
+    mh.DAC_FE_AMP_LOWER_CLAMP  =  moniBEShort(halReadDAC(DOM_HAL_DAC_FE_AMP_LOWER_CLAMP));
+    mh.DAC_FL_REF              =  moniBEShort(halReadDAC(DOM_HAL_DAC_FL_REF));
+    mh.DAC_MUX_BIAS            =  moniBEShort(halReadDAC(DOM_HAL_DAC_MUX_BIAS));
+    
+    mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(0);
+    mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadPMT_HV());
+    mh.DOM_MB_TEMPERATURE        = moniBEShort(halReadTemp());
     spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
     mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
     mh.SPE_RATE                  = moniBELong(spe);
@@ -467,15 +458,15 @@ void moniInsertDisablePMT_HV_Message(unsigned long long time) {
   moniInsertRec(&mr);
 }
 
-/* unsigned long long moniGetTimeAsUnsigned(void) {  */
-/*   /\* Fix signed-like peculiarity in HAL *\/ */
-/*   //return hal_FPGA_TEST_get_local_clock() & 0xFFFFFFFF; */
-/*   return hal_FPGA_TEST_get_local_clock(); */
-/* } */
+unsigned long long moniGetTimeAsUnsigned(void) { 
+  /* Fix signed-like peculiarity in HAL */
+  //return hal_FPGA_TEST_get_local_clock() & 0xFFFFFFFF;
+  return hal_FPGA_TEST_get_local_clock();
+}
 
 void moniPuts(char *s) {
   unsigned long long time;
-  time = hal_FPGA_TEST_get_local_clock();
+  time = moniGetTimeAsUnsigned();
   moniInsertDiagnosticMessage(s, time, strlen(s));
 }
 
@@ -499,7 +490,7 @@ void moniRunTests() {
 
   //n = snprintf(buf, BSIZ, "STARTING SELF TEST");
     
-  time = hal_FPGA_TEST_get_local_clock();
+  time = moniGetTimeAsUnsigned();
 
   /* Make sure buffer empty */
   ms = moniFetchRec(&mr);
@@ -529,7 +520,7 @@ void moniRunTests() {
 
   /* Fill small set of records */
   for(irec=0; irec < NSMALL; irec++) {
-    time = hal_FPGA_TEST_get_local_clock();
+    time = moniGetTimeAsUnsigned();
     moniInsertDiagnosticMessage(msg,time,strlen(msg));
   }
 
@@ -619,7 +610,7 @@ void moniRunTests() {
 
   /* store and fetch a bunch of times */
   for(irec=0; irec < MONI_CIRCBUF_RECS*2; irec++) {
-    time = hal_FPGA_TEST_get_local_clock();
+    time = moniGetTimeAsUnsigned();
     moniInsertDiagnosticMessage(msg,time,strlen(msg));
     ms = moniFetchRec(&mr);
     if(ms != MONI_OK && ms != MONI_WRAPPED && ms != MONI_OVERFLOW) {
@@ -638,11 +629,11 @@ void moniRunTests() {
   moniInsertDiagnosticMessage("MONI SELF TEST OK", time, 17);
 
   /* These all seem to work: 
-     moniInsertSetDACMessage(hal_FPGA_TEST_get_local_clock(), 1, 2);
-     moniInsertSetPMT_HV_Message(hal_FPGA_TEST_get_local_clock(), 3);
-     moniInsertSetPMT_HV_Limit_Message(hal_FPGA_TEST_get_local_clock(), 4);
-     moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
-     moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
+     moniInsertSetDACMessage(moniGetTimeAsUnsigned(), 1, 2);
+     moniInsertSetPMT_HV_Message(moniGetTimeAsUnsigned(), 3);
+     moniInsertSetPMT_HV_Limit_Message(moniGetTimeAsUnsigned(), 4);
+     moniInsertEnablePMT_HV_Message(moniGetTimeAsUnsigned());
+     moniInsertDisablePMT_HV_Message(moniGetTimeAsUnsigned());
   */
   return;
 

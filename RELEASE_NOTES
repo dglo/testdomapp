@@ -1,6 +1,13 @@
 testdomapp Release Notes -- jacobsen@npxdesigns.com
 
 =========================================================
+testdomapp V02-02-00
+
+- Fix domapp to use new HAL FB code (minor interface chg.
+  from John Kelley)
+- Flasher board support
+
+=========================================================
 testdomapp pole-fb-01
 
 - Flasher board support, trig type 3, bit 4 set in engineering

@@ -88,7 +88,7 @@ void dataAccess(MESSAGE_STRUCT *M) {
     struct moniRec aMoniRec;
     int total_moni_len, moniBytes, len;
     int ichip, ich;
-    int config, valid; /* For hal_FB_enable */
+    int config, valid, reset; /* For hal_FB_enable */
     int wasEnabled;
     /* get address of data portion. */
     /* Receiver ALWAYS links a message */
@@ -383,7 +383,7 @@ void dataAccess(MESSAGE_STRUCT *M) {
       wasEnabled = hal_FB_isEnabled();
       Message_setDataLen(M, 0);
       if(!wasEnabled) {
-	if(hal_FB_enable(&config, &valid)) {
+	if(hal_FB_enable(&config, &valid, &reset)) {
 	  datacs.lastErrorID = DAC_Cant_Enable_FB;
 	  strcpy(datacs.lastErrorStr, DAC_CANT_ENABLE_FB);
 	  datacs.lastErrorSeverity = WARNING_ERROR;

@@ -180,8 +180,8 @@ BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHO
   halPowerDownBase(); /* Just to be sure, turn off HV */
 
   DOM_state = DOM_FB_RUN_IN_PROGRESS;
-  int err, config_t, valid_t;
-  err = hal_FB_enable(&config_t, &valid_t);
+  int err, config_t, valid_t, reset_t;
+  err = hal_FB_enable(&config_t, &valid_t, &reset_t);
   if (err != 0) {
     switch(err) {
     case FB_HAL_ERR_CONFIG_TIME:

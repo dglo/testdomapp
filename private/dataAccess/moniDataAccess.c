@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.29 2004-09-28 18:21:02 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.21.4.2 2004-09-28 21:39:42 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -267,14 +267,6 @@ void moniFillBogusConfigStateMessage(struct moniConfig * mc) {
   mc->atwd_readout_info    = moniBELong(itest++);
 }
 
-void swapOrder(unsigned char *dst, unsigned char *src, int nbytes) {
-  /* Swap byte order of two entities of same byte width */
-  int ib;
-  for(ib=0;ib<nbytes;ib++) {
-    dst[ib] = src[nbytes-ib-1];
-  }
-}
-
 void moniInsertConfigStateMessage(unsigned long long time) {
   struct moniRec mr;
   struct moniConfig mc;
@@ -290,20 +282,13 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.hw_config_len        = moniBEShort(18);
 
     boardID = halGetBoardIDRaw();
-    HVID    = halHVSerialRaw();
+    memcpy(mc.dom_mb_id, (UBYTE *) &boardID, 6);
+    
+    mc.spare1               = moniBEShort(0); 
 
-#ifdef NOSWAP
-    memcpy(mc.dom_mb_id, (void *) &boardID, 6);
-    memcpy(mc.hw_base_id, (void *) &HVID, 8);
-#else
-    swapOrder(mc.hw_base_id, (void *) &HVID, 8);
-    swapOrder(mc.dom_mb_id, (void *) &boardID, 6);
-#endif
-
-
-
-
-    mc.spare1               = moniBEShort(0);         
+    HVID = halHVSerialRaw();
+    memcpy(mc.hw_base_id, (UBYTE *) &HVID, 8);
+        
     mc.fpga_build_num       = moniBEShort(hal_FPGA_query_build());
     mc.sw_config_len        = moniBEShort(10);
     mc.dom_mb_sw_build_num  = moniBEShort(ICESOFT_BUILD); /* From hal/dom-ws */
@@ -319,7 +304,6 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.trig_config_info     = moniBELong(0);
     mc.atwd_readout_info    = moniBELong(0);
   }
-
 
   // skip:
   mr.dataLen = sizeof(mc);
@@ -370,8 +354,8 @@ void moniFillBogusHdwrStateMessage(struct moniHardware *mh) {
 
 
 /* Type MONI_TYPE_HDWR_STATE_MSG - log dom state message */
-void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature, 
-				long spe_sum, long mpe_sum) {
+void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature,
+                                long spe_sum, long mpe_sum) {
   struct moniRec mr;
   struct moniHardware mh;
   int test = FALSE;

@@ -80,7 +80,21 @@ void msgHandlerInit(void) {
     //FPGAPLDapi_init();
 } 
 
-void msgHandler(MESSAGE_STRUCT *M) {
+
+int dom_strlen(char *s) {
+  /* JEJ: somewhat dumb design cause it won't handle improperly terminated strings very well */
+  int i;
+  i=0;
+  while(1) {
+    if(s[i] == '\0') {
+      return i;
+    }
+    i++;
+  }
+}
+
+void msgHandler(MESSAGE_STRUCT *M)
+{
 
 	int msgReject=FALSE;
 	UBYTE *data;
@@ -322,7 +336,7 @@ void msgHandler(MESSAGE_STRUCT *M) {
 		      memcpy(data, DOMAPP_RELEASE, len);
 		      Message_setDataLen(M,len);
 		      break;
-		      /*----------------------------------- */
+		    /*----------------------------------- */
 		    /* unknown service request (i.e. message */
 		    /*	subtype), respond accordingly */
 		    default:

@@ -31,8 +31,7 @@
 #define DAC_MONI_NOT_INIT "DAC: Monitoring not initialized"
 #define DAC_MONI_OVERFLOW "DAC: Monitoring buffer overflowed"
 #define DAC_MONI_BADSTAT  "DAC: Monitoring: bad status"
-#define DAC_ERS_BAD_COMPR_FORMAT "DAC: Compression: bad format specifier"
-#define DAC_ERS_BAD_ARGUMENT     "DAC: Bad message argument"
+
 /* define ALLOCATE_READOUT_BUFFER if you want dataAccess
    to allocate memory to be used for FPGA simulation.
    Otherwise define READOUT_BASE_ADDR to the real address

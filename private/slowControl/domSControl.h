@@ -64,9 +64,6 @@
 /* for DSC_bad_flasher_param */
 #define DSC_BAD_FLASHER_PARAM "DSC: Bad flasher parameter."
 
-#define DSC_ILLEGAL_LC_MODE "DSC: Illegal Local Coincidence Mode"
-#define DSC_LC_WINDOW_FAIL "DSC: Failed to set local coin. windows (check values!)"
-
 /* domSControl entry point */
 void domSControlInit(void);
 void domSControl(MESSAGE_STRUCT *M);

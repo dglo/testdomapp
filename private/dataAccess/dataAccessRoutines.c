@@ -1,3 +1,4 @@
+
 /*
 Author: Chuck McParland
 Start Date: May 4, 1999
@@ -7,58 +8,24 @@ Description:
 Modifications by John Jacobsen 2004 to implement configurable engineering events
 */
 #include <stddef.h>
+
+#if defined (CYGWIN) || defined(LINUX)
+#include <stdio.h>
+#endif
+
 #include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 // DOM-related includes
-#include "hal/DOM_MB_fpga.h"
-#include "hal/DOM_MB_pld.h"
-#include "hal/DOM_FPGA_regs.h"
 #include "hal/DOM_MB_types.h"
 #include "hal/DOM_MB_hal.h"
-
-#include "dataAccess/moniDataAccess.h"
-#include "domapp_common/commonServices.h"
-#include "domapp_common/DOMtypes.h"
-#include "domapp_common/DOMdata.h"
 #include "domapp_common/DOMstateInfo.h"
-#include "domapp_common/lbm.h"
 #include "message/message.h"
-#include "dataAccess/dataAccessRoutines.h"
 #include "dataAccess/DOMdataCompression.h"
+#include "dataAccess/moniDataAccess.h"
 #include "expControl/expControl.h"
 #include "expControl/EXPmessageAPIstatus.h"
 #include "slowControl/DSCmessageAPIstatus.h"
-
-/* Simulated waveform */
-USHORT simspe[128] = {
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   2,
-  6,  14,  25,  35,  40,  35,  25,  14,
-  6,   2,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0
-};
-
-#warning fixme - make consistent
-#define EARLY_PEDGRADER /* apply ped. subtraction / roadgrader early on */
-/* Externally available pedestal waveforms */
-extern unsigned short atwdpedavg[2][4][128];
-extern unsigned short fadcpedavg[256];
-extern USHORT atwdThreshold[2][4], fadcThreshold;
-
-extern int doLC;
 
 /* define size of data buffer in message */
 #define DATA_BUFFER_LEN MAXDATA_VALUE
@@ -81,36 +48,25 @@ extern UBYTE DOM_status;
 extern UBYTE DOM_cmdSource;
 extern ULONG DOM_constraints;
 extern char *DOM_errorString;
-extern USHORT atwdpedavg[2][4][ATWDCHSIZ];
-extern USHORT fadcpedavg[FADCSIZ];
-extern int SW_compression;
-extern int SW_compression_fmt;
 
 // local functions, data
-ULONG bufferWraps     = 0;
-ULONG bufferOverrun   = 0;
+ULONG bufferWraps = 0;
+ULONG bufferOverrun = 0;
 ULONG eventsDiscarded = 0;
-ULONG numPatEvts      = 0;
-ULONG numCPUEvts      = 0;
-int nDOMRunTriggers   = 0;
-int nDOMRawTriggers   = 0; /* Include triggers which don't have local coin */
-
-UBYTE lclEventCopy[sizeof(lbmRec)];
+UBYTE lclEventCopy[2000];
 
 // routines used for generating engineering events
 UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *FADCMove(USHORT *data, UBYTE *buffer, int count);
-UBYTE *TimeMove(UBYTE *buffer, unsigned long long time);
-void formatEngineeringEvent(UBYTE *buffer, unsigned long long time);
+UBYTE *TimeMove(UBYTE *buffer, int useLatched);
+void formatEngineeringEvent(UBYTE *buffer);
 void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
 BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
 BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
-
-void calibrateTriggeringSpeeds(void);
 
 /** Set by initFormatEngineeringEvent: */
 /* UBYTE ATWDCh0Mask; */
@@ -143,42 +99,21 @@ UBYTE FlashADCLen;
 UBYTE MiscBits = 0;
 UBYTE Spare = 0;
 
+#define ATWDCHSIZ 128
 USHORT Channel0Data[ATWDCHSIZ];
 USHORT Channel1Data[ATWDCHSIZ];
 USHORT Channel2Data[ATWDCHSIZ];
 USHORT Channel3Data[ATWDCHSIZ];
-USHORT FADCData[FADCSIZ];
-
-lbmRec LBMHit;
-
-#define TIMELBM
-#undef TIMELBM
-#ifdef TIMELBM
-#define TBEG(b) bench_start(b)
-#define TEND(b) bench_end(b)
-#define TSHOW(a,b) bench_show(a,b)
-static bench_rec_t bformat, breadout, bbuffer, bstarttrig, bcompress;
-#else
-#define TBEG(b)
-#define TEND(b)
-#define TSHOW(a,b)
-#endif
-
-#define DOCH0
-#undef  DOCH0
+USHORT FADCData[256];
 
 BOOLEAN beginRun() {
-  nDOMRunTriggers = 0;
-  if(DOM_state!=DOM_IDLE) {
-    return FALSE;
-  }
-  else {
-    //calibrateTriggeringSpeeds();
-    DOM_state=DOM_RUN_IN_PROGRESS;
-    mprintf("Started run!");
-    startLBMTriggers(); /* Triggers can start happening NOW */
-    return TRUE;
-  }
+    if(DOM_state!=DOM_IDLE) {
+	return FALSE;
+    }
+    else {
+	DOM_state=DOM_RUN_IN_PROGRESS;
+	return TRUE;
+    }
 }
 
 BOOLEAN endRun() {
@@ -187,8 +122,6 @@ BOOLEAN endRun() {
     }
     else {
 	DOM_state=DOM_IDLE;
-	mprintf("Ended run after %d triggers (%d pre-LC triggers)", nDOMRunTriggers,
-		nDOMRawTriggers);
 	return TRUE;
     }
 }
@@ -198,8 +131,6 @@ BOOLEAN forceRunReset() {
     return TRUE;
 }
 
-inline BOOLEAN runIsInProgress(void) { return DOM_state==DOM_RUN_IN_PROGRESS; }
-
 void initFillMsgWithData(void) {
 }
 
@@ -208,63 +139,9 @@ BOOLEAN checkDataAvailable() {
     return TRUE;
 }
 
-int fillMsgWithDataPoll(UBYTE *msgBuffer) {
+int fillMsgWithData(UBYTE *msgBuffer) {
 
   //ULONG FPGAeventIndex;
-  BOOLEAN done;
-  UBYTE *dataBufferPtr = msgBuffer;
-  UBYTE *tmpBufferPtr;
-
-  // start things off
-  done = FALSE;
-  // notify compression routines that we are starting a new buffer
-  dataBufferPtr=startDOMdataBuffer(msgBuffer);
-
-  while(!done) {
-    switch (FPGA_trigger_mode) {
-    case TEST_PATTERN_TRIG_MODE:
-      getPatternEvent(Channel0Data, Channel1Data,
-		      Channel2Data, Channel3Data, FADCData);
-      break;
-    case CPU_TRIG_MODE:
-      if(!getCPUEvent(Channel0Data, Channel1Data,
-		      Channel2Data, Channel3Data, FADCData)) {
-	done = TRUE;
-      }
-      break;
-    case TEST_DISC_TRIG_MODE:
-      if(!getTestDiscEvent(Channel0Data, Channel1Data,
-			   Channel2Data, Channel3Data, FADCData)) {
-	done = TRUE;
-      }
-      break;
-    default:
-      getPatternEvent(Channel0Data, Channel1Data,
-		      Channel2Data, Channel3Data, FADCData);
-      break;
-    }
-
-
-    if(!done) {
-      //fprintf(stderr,"dataAccessRoutines: formatting event\r\n");
-      formatEngineeringEvent(lclEventCopy, hal_FPGA_TEST_get_local_clock());
-      //offer it to the data compression routine
-      tmpBufferPtr = addAndCompressEvent(lclEventCopy, dataBufferPtr, SW_compression);
-      if(tmpBufferPtr == 0) {
-	//ran out of room
-	done = TRUE;
-      }
-      else {
-	//accept it
-	dataBufferPtr = tmpBufferPtr;
-      }
-    }
-  }
-
-  return (int)(dataBufferPtr-msgBuffer);
-}
-
-int fillMsgWithData(UBYTE *msgBuffer) {
     BOOLEAN done;
     UBYTE *dataBufferPtr = msgBuffer;
     UBYTE *tmpBufferPtr;
@@ -274,28 +151,52 @@ int fillMsgWithData(UBYTE *msgBuffer) {
     // notify compression routines that we are starting a new buffer
     dataBufferPtr=startDOMdataBuffer(msgBuffer);
 
+    //fprintf(stderr,"fillMsgWithData\r\n");
+
     while(!done) {
-      if(LBMQisEmpty()) {
-	done = TRUE;
-      } else {
-	maybeGetLBMQ((lbmRec *) lclEventCopy);
-      }
-      
-      if(!done) {
-	//offer it to the data compression routine
-	TBEG(bcompress);
-	tmpBufferPtr = addAndCompressEvent(lclEventCopy, dataBufferPtr, SW_compression);
-	TEND(&bcompress);
-	if(tmpBufferPtr == NULL) {
-	  //ran out of room
-	  done = TRUE;
-	} else {
-	  //accept it
-	  dataBufferPtr = tmpBufferPtr;
-	  acceptLBMRec();
+	switch (FPGA_trigger_mode) {
+	    case TEST_PATTERN_TRIG_MODE:
+		getPatternEvent(Channel0Data, Channel1Data,
+		    Channel2Data, Channel3Data, FADCData);
+		break;
+	    case CPU_TRIG_MODE:
+		if(!getCPUEvent(Channel0Data, Channel1Data,
+		    Channel2Data, Channel3Data, FADCData)) {
+		    done = TRUE;
+		}
+		break;
+	    case TEST_DISC_TRIG_MODE:
+		if(!getTestDiscEvent(Channel0Data, Channel1Data,
+		    Channel2Data, Channel3Data, FADCData)) {
+		    done = TRUE;
+	   	}
+		break;
+	    default:
+		getPatternEvent(Channel0Data, Channel1Data, 
+		    Channel2Data, Channel3Data, FADCData);
+	 	break;
 	}
-      }
+
+
+	if(!done) {
+	    //fprintf(stderr,"dataAccessRoutines: formatting event\r\n");
+	    formatEngineeringEvent(lclEventCopy);
+            //offer it to the data compression routine
+            tmpBufferPtr = addAndCompressEvent(lclEventCopy,
+                dataBufferPtr);
+            if(tmpBufferPtr == 0) {
+                //ran out of room
+                done = TRUE;
+            }
+            else {
+                //accept it
+	        dataBufferPtr = tmpBufferPtr;
+            }
+	}
     }
+   
+    //fprintf(stderr,"fillMsgWithData: bufferLength: %d\r\n",
+	//(int)(dataBufferPtr-msgBuffer));
     return (int)(dataBufferPtr-msgBuffer);
 }
 
@@ -318,8 +219,8 @@ UBYTE *ATWDShortMoveFromBottom(USHORT *data, UBYTE *buffer, int count) {
 
     for(i = 0; i < count; i++) {
 	*buffer++ = *(ptr+1);
-	*buffer++ = *ptr;
-	ptr += 2;
+	*buffer++ = *ptr++;
+	ptr++;
     }
     return buffer;
 }
@@ -339,22 +240,6 @@ UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count) {
 }
 
 
-UBYTE *ATWDShortMove_PedSubtract_RoadGrade(USHORT *data, int iatwd, int ich,
-					   UBYTE *buffer, int count) {
-  /** Assumes earliest samples are last in the array */
-  int i;
-  for(i = ATWDCHSIZ - count; i < ATWDCHSIZ; i++) {
-    int pedsubtracted = data[i] - atwdpedavg[iatwd][ich][i];
-    USHORT chopped = (pedsubtracted > atwdThreshold[iatwd][ich]) ? pedsubtracted : 0;
-    //mprintf("ATWDShortMove... i=%d data=%d pedsubtracted=%d chopped=%d",
-    //        i, data[i], pedsubtracted, chopped);
-    *buffer++ = (chopped >> 8)&0xFF;
-    *buffer++ = chopped & 0xFF;
-  }
-  return buffer;
-}
-
-
 UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count) {
   /** Assumes earliest samples are last in the array */
     int i;
@@ -366,23 +251,10 @@ UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count) {
     if(count > ATWDCHSIZ || count <= 0) return buffer; 
     for(i = ATWDCHSIZ - count; i < ATWDCHSIZ; i++) {
 	*buffer++ = *(ptr+1);
-	*buffer++ = *ptr;
-	ptr += 2;
+	*buffer++ = *ptr++;
+	ptr++;
     }
     return buffer;
-}
-
-
-UBYTE *FADCMove_PedSubtract_RoadGrade(USHORT *data, UBYTE *buffer, int count) {
-  int i;
-  for(i = 0; i < count; i++) {
-    int subtracted = data[i]-fadcpedavg[i];
-    USHORT graded = (subtracted > fadcThreshold) ? subtracted : 0;
-    //mprintf("FADCMove_... subtracted=%d graded=%d",subtracted, graded);
-    *buffer++ = (graded >> 8) & 0xFF;
-    *buffer++ = graded & 0xFF;
-  } 
-  return buffer;
 }
 
 
@@ -392,30 +264,28 @@ UBYTE *FADCMove(USHORT *data, UBYTE *buffer, int count) {
 
     for(i = 0; i < count; i++) {
 	*buffer++ = *(ptr+1);
-	*buffer++ = *ptr;
-	ptr+=2;
+	*buffer++ = *ptr++;
+	ptr++;
     }
     return buffer;
 }
 
-UBYTE *TimeMove(UBYTE *buffer, unsigned long long time) {
+UBYTE *TimeMove(UBYTE *buffer, int useLatched) {
     int i;
     union DOMtime {unsigned long long time;
 	UBYTE timeBytes[8];};
     union DOMtime t;
 
-    t.time = time;
-
-/*     //t.time = hal_FPGA_TEST_get_local_clock(); /\* Old code didn't use latched ATWD time *\/ */
-/*     if(useLatched) { */
-/*       if(FPGA_ATWD_select == 0) { */
-/* 	t.time = hal_FPGA_TEST_get_atwd0_clock(); */
-/*       } else { */
-/* 	t.time = hal_FPGA_TEST_get_atwd1_clock(); */
-/*       } */
-/*     } else { */
-/*       t.time = hal_FPGA_TEST_get_local_clock(); */
-/*     } */
+    //t.time = hal_FPGA_TEST_get_local_clock(); /* Old code didn't use latched ATWD time */
+    if(useLatched) {
+      if(FPGA_ATWD_select == 0) {
+	t.time = hal_FPGA_TEST_get_atwd0_clock();
+      } else {
+	t.time = hal_FPGA_TEST_get_atwd1_clock();
+      }
+    } else {
+      t.time = hal_FPGA_TEST_get_local_clock();
+    }
 
     for(i = 0; i < 6; i++) {
       *buffer++ = t.timeBytes[5-i];
@@ -489,66 +359,105 @@ void initFormatEngineeringEvent(UBYTE fadc_samp_cnt_arg,
   FlashADCData = FADCData;
 }
 
-void formatEngineeringEvent(UBYTE *event, unsigned long long time) {
-  UBYTE *beginOfEvent=event;
-  USHORT length;
-  int ich;
-  
-  //  skip over event length
-  event += 2;
-  
-  //  fill in the event ID
-  *event++ = 0x0;
-  *event++ = ENG_EVENT_FID;
-  
-  //  various header info
-  *event++ = MiscBits;
-  *event++ = FlashADCLen;
-  
-  //  ATWD masks
-  *event++ = (ATWDChMask[1]<<4) | ATWDChMask[0];
-  *event++ = (ATWDChMask[3]<<4) | ATWDChMask[2];
-  
-  //  set trigger mode  
-  /* Form up the mask indicating which sort of event it was */
-  switch(FPGA_trigger_mode) {
-  case TEST_PATTERN_TRIG_MODE:
-    *event++ = 0; break;
-  case CPU_TRIG_MODE:
-    *event++ = 1; break;
-  case TEST_DISC_TRIG_MODE:
-    *event++ = 2; break;
-  default:
-    *event++ = 0x80; break;
-  }
-  
-  //  spare byte
-  *event++ = Spare;
-  
-  //  insert the time
-  event = TimeMove(event, time);
-  
-  //  do something with flash data
-  if(SW_compression) {
-    event = FADCMove_PedSubtract_RoadGrade(FlashADCData, event, (int)FlashADCLen);
-  } else {
-    event = FADCMove(FlashADCData, event, (int)FlashADCLen);
-  }
+void formatEngineeringEvent(UBYTE *event) {
+#define BSIZ 1024
+  //char buf[BSIZ]; int n;
+  //unsigned long long time;
+    UBYTE *beginOfEvent=event;
+    USHORT length;
+    int ich;
 
-  //  now the ATWD data
-  for(ich = 0; ich < 4; ich++) {
-    if(SW_compression) {
-      event = ATWDShortMove_PedSubtract_RoadGrade(ATWDChData[ich], MiscBits & 0x01, ich,
-						  event, ATWDChLen[ich]);
-    } else {
-      event = ATWDShortMove(ATWDChData[ich], event, ATWDChLen[ich]);
+    //    int i;
+    //UBYTE *ev=event;
+
+    //printf("formatEngineeringEvent: starting, event: %x\r\n", event);
+
+
+//  skip over event length
+    event++;
+    event++;
+
+//  fill in the event ID
+    *event++ = 0x0;
+    *event++ = ENG_EVENT_FID;
+
+//  various header info
+    *event++ = MiscBits;
+    *event++ = FlashADCLen;
+
+//  ATWD masks
+    *event++ = (ATWDChMask[1]<<4) | ATWDChMask[0];
+    *event++ = (ATWDChMask[3]<<4) | ATWDChMask[2];
+
+    //printf("formatEngineeringEvent: header done, event: %x\r\n", event);
+
+//  set trigger mode
+    
+    /* Form up the mask indicating which sort of event it was */
+
+    /* set to match trigger mode values -DH */
+
+    switch(FPGA_trigger_mode) {
+    case TEST_PATTERN_TRIG_MODE:
+      *event++ = 0;
+      break;
+    case CPU_TRIG_MODE:
+      *event++ = 1;
+      break;
+    case TEST_DISC_TRIG_MODE:
+      *event++ = 2;
+      break;
+    default:
+      *event++ = 0x80;
+      break;
     }
-  }
-  length = (USHORT)((event - beginOfEvent) & 0xffff);
-  *beginOfEvent++ = (length >> 8) & 0xff;
-  *beginOfEvent++ = length & 0xff;
-} 
+ 
+//  spare byte
+    *event++ = Spare;
+// TEST spare, easier to spot
+//    *event++ = 66;
 
+//  insert the time
+    event = TimeMove(event, (FPGA_trigger_mode == TEST_DISC_TRIG_MODE ? 1 : 0));
+
+    /*
+    char buf[MBSIZ];
+    int ib;
+    for(ib=0; ib < 20; ib++) {
+      int ndiag = snprintf(buf, MBSIZ, "BUF byte %d is 0x%02x", ib, beginOfEvent[ib]);
+      unsigned long long tt = hal_FPGA_TEST_get_local_clock();
+      moniInsertDiagnosticMessage(buf, tt, ndiag);
+    }
+    */
+
+//  do something with flash data
+    event = FADCMove(FlashADCData, event, (int)FlashADCLen);
+
+//  now the ATWD data
+    for(ich = 0; ich < 4; ich++) {
+      if(ATWDChByte[ich]) {
+	event = ATWDByteMove(ATWDChData[ich], event, ATWDChLen[ich]);
+      } else {
+	event = ATWDShortMove(ATWDChData[ich], event, ATWDChLen[ich]);
+      }
+    }
+
+    //fprintf(stderr,"formatEngineeringEvent:  done, event: %x\r\n", event);
+
+    length = (USHORT)((event - beginOfEvent) & 0xffff);
+    *beginOfEvent++ = (length >> 8) & 0xff;
+    *beginOfEvent++ = length & 0xff;
+
+/*
+    printf("formatEngineeringEvent: length: %d\r\n", length);
+    for(i=0;i<=length/10;i++) {
+	printf("%d: %x %x %x %x %x %x %x %x %x %x\r\n",
+	    i*10, *ev++, *ev++,*ev++,*ev++,*ev++,*ev++,
+	    *ev++,*ev++,*ev++,*ev++);
+    }
+*/
+
+} 
 
 void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
         USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC) {
@@ -561,27 +470,9 @@ void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	Ch3Data[i] = ATWDCHSIZ - i;
     }
 
-    for(i = 0; i < FADCSIZ; i++) {
+    for(i = 0; i < 256; i++) {
 	FADC[i] = i;
     }
-}
-
-
-void getSPEPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
-			USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC) {
-  int i;
-  MiscBits = 0;
-  int ichip = MiscBits & 0x01;
-  for(i = 0; i < ATWDCHSIZ; i++) {
-    Ch0Data[i] = simspe[i] + atwdpedavg[ichip][0][i];
-    Ch1Data[i] = atwdpedavg[ichip][1][i];
-    Ch2Data[i] = atwdpedavg[ichip][2][i];
-    Ch3Data[i] = atwdpedavg[ichip][3][i];
-  }
-
-  for(i = 0; i < FADCSIZ; i++) {
-    FADC[i] = fadcpedavg[i];
-  }
 }
 
 BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
@@ -615,6 +506,7 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
     for(i = 0; i < ATWD_TIMEOUT_COUNT; i++) {
 	if(hal_FPGA_TEST_readout_done(trigger_mask)) {
 	    //fprintf(stderr,"readout ready\r\n");
+
 	    if(FPGA_ATWD_select == 0) {
 	        MiscBits = 0;
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
@@ -655,14 +547,14 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	if(hal_FPGA_TEST_readout_done(trigger_mask)) {
 	    if(FPGA_ATWD_select == 0) {
 	        MiscBits = 0;
-	    	hal_FPGA_TEST_readout(Channel0Data, Channel1Data,
-		    Channel2Data, Channel3Data, 0, 0, 0, 0, ATWDCHSIZ, 
+	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
+		    Ch2Data, Ch3Data, 0, 0, 0, 0, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
 	        MiscBits = 1;
-	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Channel0Data, Channel1Data,
-		    Channel2Data, Channel3Data, ATWDCHSIZ, 
+	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
+		    Ch2Data, Ch3Data, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    return TRUE;
@@ -673,268 +565,3 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
     }
     return FALSE;
 }
-
-void startLBMTriggers(void) {
-  UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
-    (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
-
-  switch (FPGA_trigger_mode) {
-  case CPU_TRIG_MODE:
-    hal_FPGA_TEST_trigger_forced(trigger_mask);
-    break;
-  case TEST_DISC_TRIG_MODE:
-    hal_FPGA_TEST_trigger_disc(trigger_mask);
-    break;
-  case TEST_PATTERN_TRIG_MODE:
-  default: /* Do nothing */ 
-    break;
-  }
-}
-
-void insertPedestalOnlyEvent(void) {
-  int isamp, ichip=0;
-  for(isamp = 0; isamp < ATWDCHSIZ; isamp++) {
-    Channel0Data[isamp] = atwdpedavg[ichip][0][isamp];
-    Channel1Data[isamp] = atwdpedavg[ichip][1][isamp];
-    Channel2Data[isamp] = atwdpedavg[ichip][2][isamp];
-    Channel3Data[isamp] = atwdpedavg[ichip][3][isamp];
-  }
-
-  for(isamp = 0; isamp < FADCSIZ; isamp++) {
-    FADCData[isamp] = fadcpedavg[isamp];
-  }
-
-  formatEngineeringEvent((unsigned char *) &LBMHit, hal_FPGA_TEST_get_local_clock());
-  putLBMQ(&LBMHit);
-  if(LBMQisBlown()) {
-    mprintf("Lookback memory is blown (%d entries).  Resetting read pointer", nLBMQEntries());
-    LBMResetOverflow();
-  }
-}
-
-void insertFADCSquarePulse(USHORT peak) {
-  int isamp, ichip=0;
-  for(isamp = 0; isamp < ATWDCHSIZ; isamp++) {
-    Channel0Data[isamp] = atwdpedavg[ichip][0][isamp];
-    Channel1Data[isamp] = atwdpedavg[ichip][1][isamp];
-    Channel2Data[isamp] = atwdpedavg[ichip][2][isamp];
-    Channel3Data[isamp] = atwdpedavg[ichip][3][isamp];
-  }
-  for(isamp = 0; isamp < FADCSIZ; isamp++) {
-    FADCData[isamp] = fadcpedavg[isamp];
-    if(isamp>5&&isamp<50) FADCData[isamp]+=peak;
-  }
-
-  formatEngineeringEvent((unsigned char *) &LBMHit, hal_FPGA_TEST_get_local_clock());
-  putLBMQ(&LBMHit);
-  if(LBMQisBlown()) {
-    mprintf("Lookback memory is blown (%d entries).  Resetting read pointer", nLBMQEntries());
-    LBMResetOverflow();
-  }
-}
-
-
-void insertATWDSquarePulse(int ichip, int ichan, USHORT peak) {
-  int isamp;
-  for(isamp = 0; isamp < ATWDCHSIZ; isamp++) {
-    Channel0Data[isamp] = atwdpedavg[ichip][0][isamp];
-    Channel1Data[isamp] = atwdpedavg[ichip][1][isamp];
-    Channel2Data[isamp] = atwdpedavg[ichip][2][isamp];
-    Channel3Data[isamp] = atwdpedavg[ichip][3][isamp];
-    if(ichan==0 && isamp>5 && isamp<20) Channel0Data[isamp]+=peak;
-    if(ichan==1 && isamp>5 && isamp<20) Channel1Data[isamp]+=peak;
-    if(ichan==2 && isamp>5 && isamp<20) Channel2Data[isamp]+=peak;
-    if(ichan==3 && isamp>5 && isamp<20) Channel3Data[isamp]+=peak;
-/*     if(ichan==0 && isamp == 6) mprintf("ichan=%d isamp=%d peak=%d ped=%d data=%d", */
-/* 				       ichan,isamp,peak,atwdpedavg[ichip][0][isamp], */
-/* 				       Channel0Data[isamp]); */
-  }
-  for(isamp = 0; isamp < FADCSIZ; isamp++) {
-    FADCData[isamp] = fadcpedavg[isamp];
-  }
-
-  formatEngineeringEvent((unsigned char *) &LBMHit, hal_FPGA_TEST_get_local_clock());
-  putLBMQ(&LBMHit);
-  if(LBMQisBlown()) {
-    mprintf("Lookback memory is blown (%d entries).  Resetting read pointer", nLBMQEntries());
-    LBMResetOverflow();
-  }  
-}
-
-
-void insertTestEvents(void) {
-  insertPedestalOnlyEvent();
-  insertFADCSquarePulse(666);
-  insertATWDSquarePulse(0,1,666);
-  insertATWDSquarePulse(0,2,666);
-  insertATWDSquarePulse(0,3,666); 
-  nDOMRunTriggers+=5;
-}
-
-
-void calibrateTriggeringSpeeds(void) {
-
-  /* Take a bunch of discriminator triggers as fast as possible in 1 second */
-  UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC |
-    (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
-  unsigned long t0 = FPGA(TEST_LOCAL_CLOCK_LOW);
-  unsigned long t1;
-
-#define FPGA_CLOCK_SPEED 40000000
-#define FPGA_CLOCKS_TO_NSEC 25 
-  int n = 0;
-
-  hal_FPGA_TEST_trigger_disc(trigger_mask);
-  bench_rec_t bcalib, breadout, bstarttrig, btestdone;
-  bench_init(&bcalib);
-  bench_init(&breadout);
-  bench_init(&bstarttrig);
-  bench_init(&btestdone);
-
-  while((t1=FPGA(TEST_LOCAL_CLOCK_LOW))-t0 < 1*FPGA_CLOCK_SPEED) {
-    bench_start(bcalib);
-    bench_end(&bcalib);
-
-    bench_start(btestdone);
-    int d = hal_FPGA_TEST_readout_done(trigger_mask);
-    bench_end(&btestdone);
-    if(!d) continue;
-
-    n++;
-    bench_start(breadout);
-#ifdef DOCH0
-    hal_FPGA_TEST_readout(Channel0Data, 0, 0, 0, 0, 0, 0, 0, ATWDCHSIZ, 0, (int) FlashADCLen,
-			  trigger_mask);
-#else
-    hal_FPGA_TEST_readout(Channel0Data, Channel1Data, Channel2Data, Channel3Data,
-			  0, 0, 0, 0, ATWDCHSIZ, FADCData, (int)FlashADCLen, trigger_mask);
-#endif
-    bench_end(&breadout);
-
-    bench_start(bstarttrig);
-    hal_FPGA_TEST_trigger_disc(trigger_mask);
-    bench_end(&bstarttrig);
-  }
-  mprintf("t0=%ld t1=%ld dt=%ld n=%d", t0, t1, t1-t0, n);
-  bench_show(&bcalib,     "Calibration");
-  bench_show(&bstarttrig, "Trigger start");
-  bench_show(&btestdone,  "Test done");
-#ifdef DOCH0
-  bench_show(&breadout,   "Readout (ch0 only)");
-#else
-  bench_show(&breadout,   "Readout");
-#endif
-}
-
-
-void bufferLBMTriggers(void) {
-  unsigned long long time;
-  UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
-    (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
-  int gottrig = 0;
-  //unsigned long tsr0, tsr1;
-  if(DOM_state != DOM_RUN_IN_PROGRESS) return; /* Do nothing unless run in progress */
-  /* Read out data */
-  switch (FPGA_trigger_mode) {
-  case CPU_TRIG_MODE:
-  case TEST_DISC_TRIG_MODE:
-    /* Bail if nothing available */
-    //tsr0 = (FPGA(TEST_SIGNAL_RESPONSE));
-    if(!hal_FPGA_TEST_readout_done(trigger_mask)) break;
-#warning hal_FPGA_TEST_readout_done kludge until firmware 
-    if(!hal_FPGA_TEST_readout_done(trigger_mask)) break;
-    //tsr1 = FPGA(TEST_SIGNAL_RESPONSE);
-    //mprintf("tsr0 0x%08lx tsr1 0x%08lx trigger_mask 0x%02x", tsr0, tsr1, trigger_mask);
-    nDOMRawTriggers++;
-    nDOMRunTriggers++;
-    if(FPGA_ATWD_select == 0) {
-      MiscBits = 0;
-      TBEG(breadout);
-#ifdef DOCH0
-      hal_FPGA_TEST_readout(Channel0Data, 0, 0, 0,
-			    0, 0, 0, 0, ATWDCHSIZ, 0, (int)FlashADCLen, trigger_mask);
-#else
-      hal_FPGA_TEST_readout(Channel0Data, Channel1Data, Channel2Data, Channel3Data, 
-			    0, 0, 0, 0, ATWDCHSIZ, FADCData, (int)FlashADCLen, trigger_mask);
-#endif
-      TEND(&breadout);
-    } else {
-      TBEG(breadout);
-#ifdef DOCH0
-      hal_FPGA_TEST_readout(0, 0, 0, 0, Channel0Data, 0, 0, 0,
-			    ATWDCHSIZ, 0, (int)FlashADCLen, trigger_mask);
-#else
-      hal_FPGA_TEST_readout(0, 0, 0, 0, Channel0Data, Channel1Data, Channel2Data, Channel3Data,
-			    ATWDCHSIZ, FADCData, (int)FlashADCLen, trigger_mask);
-#endif
-      TEND(&breadout);
-    }
-    gottrig = 1;
-    numCPUEvts++;
-    if(!(numCPUEvts%1000)) {
-      mprintf("Got CPU or Disc. trigger %d (nLBM=%d head=%d tail=%d)", 
-	      numCPUEvts, nLBMQEntries(), _getLBMQHead(), _getLBMQTail());
-      TSHOW(&bformat,    "Format engineering event");
-#ifdef DOCH0
-      TSHOW(&breadout,   "Read out data from HAL (Ch0 only)");
-#else
-      TSHOW(&breadout,   "Read out data from HAL");
-#endif
-      TSHOW(&bbuffer,    "Buffer data in LBM");
-      TSHOW(&bstarttrig, "Enable trigger");
-      TSHOW(&bcompress,  "Add and Compress");
-    }
-    break;
-
-  case TEST_PATTERN_TRIG_MODE:
-  default:
-    nDOMRunTriggers++;
-    MiscBits = 0;
-#define DOSPESIM
-#undef DOSPESIM
-#ifdef DOSPESIM
-    getSPEPatternEvent(Channel0Data, Channel1Data,
-                    Channel2Data, Channel3Data, FADCData);
-#else
-    getPatternEvent(Channel0Data, Channel1Data,
-                    Channel2Data, Channel3Data, FADCData);
-#endif
-    gottrig = 1;
-    numPatEvts++;
-    if(!(numPatEvts%1000)) mprintf("Got test pattern event %d (nLBM=%d head=%d tail=%d)",
-				   numPatEvts, nLBMQEntries(), _getLBMQHead(), _getLBMQTail());
-    break;
-  }
-  if(gottrig) { 
-    /* Timestamp it */
-    if(FPGA_trigger_mode == TEST_DISC_TRIG_MODE) {
-      if(FPGA_ATWD_select == 0) 
-	time = hal_FPGA_TEST_get_atwd0_clock();
-      else 
-	time = hal_FPGA_TEST_get_atwd1_clock();
-    } else {
-      time = hal_FPGA_TEST_get_local_clock();
-    }
-    /* Start next trigger */
-#warning fixme make sure no race conditions between startLBMTriggers and formatEngineeringEvent
-    TBEG(bstarttrig);
-    startLBMTriggers(); 
-    TEND(&bstarttrig);
-
-    /* Format engineering event */
-    TBEG(bformat);
-    formatEngineeringEvent((unsigned char *) &LBMHit, time);
-    TEND(&bformat);
-
-    /* Buffer it */
-    TBEG(bbuffer);
-    putLBMQ(&LBMHit);
-    TEND(&bbuffer);
-
-    if(LBMQisBlown()) {
-      mprintf("Lookback memory is blown (%d entries).  Resetting read pointer", nLBMQEntries());
-      LBMResetOverflow();
-    }
-  }
-}
-

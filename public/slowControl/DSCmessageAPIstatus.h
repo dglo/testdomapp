@@ -46,11 +46,6 @@
 #define DSC_GET_RATE_METERS 42
 #define DSC_SET_SCALER_DEADTIME 43
 #define DSC_GET_SCALER_DEADTIME 44
-#define DSC_SET_LOCAL_COIN_MODE 45
-#define DSC_GET_LOCAL_COIN_MODE 46
-#define DSC_SET_LOCAL_COIN_WINDOW 47
-#define DSC_GET_LOCAL_COIN_WINDOW 48
-
 
 /* Slow Control specific Last error ID values */
 #define DSC_Failed_Challenge 4
@@ -70,8 +65,7 @@
 #define DSC_violates_constraints 18
 #define DSC_rate_meters_unresponsive 19
 #define DSC_bad_flasher_param 20
-#define DSC_Illegal_LC_Mode 21
-#define DSC_LC_Window_Fail 22
+
 
 /* These are DOM Slow Control specific return message
    formats and values.  In most cases, they are formatted

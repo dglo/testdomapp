@@ -16,8 +16,4 @@ int fillMsgWithData(UBYTE *msgBuffer);
 
 void initFormatEngineeringEvent(UBYTE, UBYTE, UBYTE);
 
-void startLBMTriggers();
-void bufferLBMTriggers(void);
-void insertTestEvents(void);
-
 #endif

@@ -25,17 +25,33 @@
    (see SubTypes).
   
    Note that only 31 status values are available. */
-enum Status {
-	SUCCESS=1,
-	UNKNOWN_SERVER,
-	SERVER_STACK_FULL,
-	UNKNOWN_SUBTYPE,
-	SERVER_PROTOCOL_ERROR,
-	DATA_NOT_FOUND,
-	OBJECT_NOT_FOUND,
-	SERVICE_SPECIFIC_ERROR,
-	LAST_STATUS=31
-};
+
+/* This was broken - you can't OR these together 
+   if they aren't powers of 2!!! --JEJ
+   enum Status {
+   SUCCESS=1,
+   UNKNOWN_SERVER,
+   SERVER_STACK_FULL,
+   UNKNOWN_SUBTYPE,
+   SERVER_PROTOCOL_ERROR,
+   DATA_NOT_FOUND,
+   OBJECT_NOT_FOUND,
+   SERVICE_SPECIFIC_ERROR,
+   LAST_STATUS=31
+   };
+*/
+
+#define BIT(n) (1<<(n))
+/* Can only have 8 of these, status is 8 bits */
+#define SUCCESS                BIT(0)
+#define UNKNOWN_SERVER         BIT(1)
+#define SERVER_STACK_FULL      BIT(2)
+#define UNKNOWN_SUBTYPE        BIT(3)
+#define SERVER_PROTOCOL_ERROR  BIT(4)
+#define DATA_NOT_FOUND         BIT(5)
+#define OBJECT_NOT_FOUND       BIT(6)
+#define SERVICE_SPECIFIC_ERROR BIT(7)
+
 /* logging request bit masks */
 #define NO_LOG_REQUEST 0x00
 #define LOG_REQUEST 0x80

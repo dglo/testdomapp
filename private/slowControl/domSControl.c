@@ -70,6 +70,7 @@ void domSControl(MESSAGE_STRUCT *M) {
     UBYTE *tmpPtr;
     USHORT tmpShort;
     USHORT PMT_HVreq;
+    ULONG deadTime;
     int i;
 
 
@@ -441,6 +442,16 @@ void domSControl(MESSAGE_STRUCT *M) {
 		Message_setDataLen(M,DSC_GET_RATE_METERS_LEN);
 		Message_setStatus(M,SUCCESS);
 		break;  
+	    case DSC_SET_SCALER_DEADTIME:
+	        deadTime = unformatLong(data);
+		/* HAL expects an int here, but deadTime is passed as
+		   ULONG (unsigned) for convenience; should probably check
+		   for negative number, but just give to HAL as is for now; for 
+		   negatives HAL will just set to 50*2^15 nsec. */
+		hal_FPGA_TEST_set_deadtime((int)deadTime);
+                Message_setDataLen(M,0);
+                Message_setStatus(M,SUCCESS);
+		break;
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

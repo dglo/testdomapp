@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.12 2004-01-22 18:13:33 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.13 2004-01-30 16:50:56 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -377,6 +377,7 @@ void moniInsertHdwrStateMessage(unsigned long long time) {
     mh.DAC_SINGLE_SPE_THRESH   =  moniBEShort(halReadDAC(DOM_HAL_DAC_SINGLE_SPE_THRESH));
     mh.DAC_LED_BRIGHTNESS      =  moniBEShort(halReadDAC(DOM_HAL_DAC_LED_BRIGHTNESS));
     mh.DAC_FAST_ADC_REF        =  moniBEShort(halReadDAC(DOM_HAL_DAC_FAST_ADC_REF));
+
     mh.DAC_INTERNAL_PULSER     =  moniBEShort(halReadDAC(DOM_HAL_DAC_INTERNAL_PULSER));
     mh.DAC_FE_AMP_LOWER_CLAMP  =  moniBEShort(halReadDAC(DOM_HAL_DAC_FE_AMP_LOWER_CLAMP));
     mh.DAC_FL_REF              =  moniBEShort(halReadDAC(DOM_HAL_DAC_FL_REF));

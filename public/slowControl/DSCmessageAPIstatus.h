@@ -7,8 +7,11 @@
    Control service.  
 
    March 7, 2003
-   Chuck McParland */
+   Chuck McParland 
 
+   Mods by Jacobsen in 2004 to accommodate new messages */
+
+   
 
 /* message API subtype values. This field is not
    declared as an enum because each service declares
@@ -41,6 +44,7 @@
 #define DSC_SET_PULSER_OFF 40
 #define DSC_PULSER_RUNNING 41
 #define DSC_GET_RATE_METERS 42
+#define DSC_SET_SCALER_DEADTIME 43
 
 /* Slow Control specific Last error ID values */
 #define DSC_Failed_Challenge 4
@@ -363,4 +367,13 @@ Size of returned values in data portion:
         ULONG MPE_RATE_PER_TENTH_SEC
    Size of returned values in data portion: */
 #define DSC_GET_RATE_METERS_LEN 8
+
+/* Response to:
+        subType: DSC_SET_SCALER_DEADTIME
+   Passed values:
+        ULONG SCALER_DEADTIME
+   Returned values: 
+        None
+*/
+
 #endif

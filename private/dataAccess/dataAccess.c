@@ -30,10 +30,8 @@ Modification: 5/10/04 Jacobsen :-- put more than one monitoring rec. per request
 #include "dataAccess/dataAccessRoutines.h"
 #include "dataAccess/DOMdataCompression.h"
 #include "dataAccess/moniDataAccess.h"
-#include "dataAccess/compressEvent.h"
 #include "domapp_common/DOMstateInfo.h"
 #include "slowControl/DSCmessageAPIstatus.h"
-#include "domapp_common/lbm.h"
 
 /* extern functions */
 extern void formatLong(ULONG value, UBYTE *buf);
@@ -43,9 +41,8 @@ extern UBYTE DOM_state;
 
 /* global storage */
 UBYTE FPGA_trigger_mode=CPU_TRIG_MODE;
-int FPGA_ATWD_select   = 0;
-int SW_compression     = 0;
-int SW_compression_fmt = 0;
+int FPGA_ATWD_select=0;
+
 /* Format masks: default, and configured by request */
 #define DEF_FADC_SAMP_CNT  255
 #define DEF_ATWD01_MASK    0xFF
@@ -77,7 +74,6 @@ void dataAccessInit(void) {
 
 /* data access  Entry Point */
 void dataAccess(MESSAGE_STRUCT *M) {
-    char * idptr;
     UBYTE *data;
     int tmpInt;
     //UBYTE tmpByte;
@@ -87,9 +83,7 @@ void dataAccess(MESSAGE_STRUCT *M) {
     unsigned long long moniHdwrIval, moniConfIval;
     struct moniRec aMoniRec;
     int total_moni_len, moniBytes, len;
-    int ichip, ich;
-    int config, valid, reset; /* For hal_FB_enable */
-    int wasEnabled;
+    
     /* get address of data portion. */
     /* Receiver ALWAYS links a message */
     /* to a valid data buffer-even */ 
@@ -205,12 +199,6 @@ void dataAccess(MESSAGE_STRUCT *M) {
       Message_setStatus(M, SUCCESS);
       break;
       
-    case DATA_ACC_RESET_LBM:
-      emptyLBMQ();
-      Message_setDataLen(M, 0);
-      Message_setStatus(M, SUCCESS);
-      break;
-
       /* JEJ: Deal with configurable intervals for monitoring events */
     case DATA_ACC_SET_MONI_IVAL:
       moniHdwrIval = FPGA_HAL_TICKS_PER_SEC * unformatLong(Message_getData(M));
@@ -227,8 +215,8 @@ void dataAccess(MESSAGE_STRUCT *M) {
       Message_setDataLen(M, 0);
       Message_setStatus(M, SUCCESS);
 
-      mprintf("MONI SET IVAL REQUEST hw=%ldE6 cf=%ldE6 CPU TICKS/RECORD",
-	      (long) (moniHdwrIval/1000000), (long) (moniConfIval/1000000));
+      mprintf("MONI SET IVAL REQUEST hw=%lld cf=%lld CPU TICKS/RECORD",
+	      moniHdwrIval, moniConfIval);
 
       break;
       
@@ -300,113 +288,6 @@ void dataAccess(MESSAGE_STRUCT *M) {
       /*----------------------------------- */
       /* unknown service request (i.e. message */
       /*	subtype), respond accordingly */
-
-    case DATA_ACC_TEST_SW_COMP:
-      insertTestEvents();
-      Message_setDataLen(M, 0);
-      Message_setStatus(M, SUCCESS);
-      break;
-
-    case DATA_ACC_SET_BASELINE_THRESHOLD:
-      setFADCRoadGradeThreshold(unformatShort(data));
-      for(ichip=0;ichip<2;ichip++) {
-	for(ich=0; ich<4; ich++) {
-	  setATWDRoadGradeThreshold(unformatShort(data // base pointer
-						  + 2  // skip fadc value
-						  + ichip*8 // ATWD0 or 1
-						  + ich*2   // select channel
-						  ), ichip, ich);
-	}
-      }
-      
-      Message_setDataLen(M, 0);
-      Message_setStatus(M, SUCCESS);
-      break;
-
-    case DATA_ACC_GET_BASELINE_THRESHOLD:
-      formatShort(getFADCRoadGradeThreshold(), data);
-      for(ichip=0;ichip<2;ichip++) {
-        for(ich=0; ich<4; ich++) {
-	  formatShort(getATWDRoadGradeThreshold(ichip, ich),
-		      data // base pointer
-		      + 2  // skip fadc value
-		      + ichip*8 // ATWD0 or 1
-		      + ich*2   // select channel
-		      );
-	}
-      }
-      Message_setDataLen(M, 18);
-      Message_setStatus(M, SUCCESS);
-      break;
-
-    case DATA_ACC_SET_SW_DATA_COMPRESSION:
-      if(data[0] != 0 && data[0] != 1) {
-	datacs.lastErrorID = DAC_Bad_Argument;
-        strcpy(datacs.lastErrorStr, DAC_ERS_BAD_ARGUMENT);
-        datacs.lastErrorSeverity = WARNING_ERROR;
-	Message_setDataLen(M, 0);
-        Message_setStatus(M, WARNING_ERROR);
-	break;
-      }
-      SW_compression = data[0];
-      Message_setDataLen(M, 0);
-      Message_setStatus(M, SUCCESS);
-      break;
-
-    case DATA_ACC_GET_SW_DATA_COMPRESSION:
-      data[0] = SW_compression ? 1 : 0;
-      Message_setDataLen(M, 1);
-      Message_setStatus(M, SUCCESS);
-      break;
-      
-    case DATA_ACC_SET_SW_DATA_COMPRESSION_FORMAT:
-      Message_setDataLen(M, 0);
-      if(data[0] != 0) {
-	/* 0 is only supported format at the moment */
-	datacs.lastErrorID = DAC_Bad_Compr_Format;
-	strcpy(datacs.lastErrorStr, DAC_ERS_BAD_COMPR_FORMAT);
-	datacs.lastErrorSeverity = WARNING_ERROR;
-	Message_setStatus(M, WARNING_ERROR);
-	break;
-      } 
-      SW_compression_fmt = (int) data[0];
-      Message_setStatus(M, SUCCESS);
-      break;
-
-    case DATA_ACC_GET_SW_DATA_COMPRESSION_FORMAT:
-      data[0] = (UBYTE) SW_compression_fmt;
-      Message_setDataLen(M, 1);
-      Message_setStatus(M, SUCCESS);
-      break;
-
-    case DATA_ACC_GET_FB_SERIAL:
-      wasEnabled = hal_FB_isEnabled();
-      Message_setDataLen(M, 0);
-      if(!wasEnabled) {
-	if(hal_FB_enable(&config, &valid, &reset, DOM_FPGA_TEST)) {
-	  datacs.lastErrorID = DAC_Cant_Enable_FB;
-	  strcpy(datacs.lastErrorStr, DAC_CANT_ENABLE_FB);
-	  datacs.lastErrorSeverity = WARNING_ERROR;
-	  Message_setStatus(M, WARNING_ERROR);
-	  hal_FB_disable();
-	  break;
-	}
-      }
-      if(hal_FB_get_serial(&idptr)) {
-	datacs.lastErrorID = DAC_Cant_Get_FB_Serial;
-	strcpy(datacs.lastErrorStr, DAC_CANT_GET_FB_SERIAL);
-	datacs.lastErrorSeverity = WARNING_ERROR;
-	Message_setStatus(M, WARNING_ERROR);
-	if(!wasEnabled) hal_FB_disable();
-	break;
-      } else {
-	memcpy(data, idptr, strlen(idptr));
-	Message_setDataLen(M, strlen(idptr));
-      }
-      if(!wasEnabled) hal_FB_disable();
-      Message_setStatus(M, SUCCESS);
-      break;
-
     default:
       datacs.msgRefused++;
       strcpy(datacs.lastErrorStr, DAC_ERS_BAD_MSG_SUBTYPE);

@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.1.1.15 2006-07-21 19:36:34 arthur Exp $
+ * $Id: moniDataAccess.c,v 1.21 2004-05-20 15:56:20 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -267,14 +267,6 @@ void moniFillBogusConfigStateMessage(struct moniConfig * mc) {
   mc->atwd_readout_info    = moniBELong(itest++);
 }
 
-void swapOrder(unsigned char *dst, unsigned char *src, int nbytes) {
-  /* Swap byte order of two entities of same byte width */
-  int ib;
-  for(ib=0;ib<nbytes;ib++) {
-    dst[ib] = src[nbytes-ib-1];
-  }
-}
-
 void moniInsertConfigStateMessage(unsigned long long time) {
   struct moniRec mr;
   struct moniConfig mc;
@@ -289,24 +281,20 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.spare0               = 0;
     mc.hw_config_len        = moniBEShort(18);
 
+    //memcpy(mc.dom_mb_id,halGetBoardID(),6); 
     boardID = halGetBoardIDRaw();
-    HVID    = halHVSerialRaw();
+    memcpy(mc.dom_mb_id, (UBYTE *) &boardID, 6);
 
-#ifdef NOSWAP
-    memcpy(mc.dom_mb_id, (void *) &boardID, 6);
-    memcpy(mc.hw_base_id, (void *) &HVID, 8);
-#else
-    swapOrder(mc.hw_base_id, (void *) &HVID, 8);
-    swapOrder(mc.dom_mb_id, (void *) &boardID, 6);
-#endif
+    mc.spare1               = moniBEShort(0); 
 
-
-
-
-    mc.spare1               = moniBEShort(0);         
-    mc.fpga_build_num       = moniBEShort(hal_FPGA_query_build());
+    //memcpy(mc.hw_base_id,"UNKNOWN!",8);
+    HVID = halHVSerialRaw();
+    memcpy(mc.hw_base_id, (UBYTE *) &HVID, 8);
+    
+ /* mc.fpga_build_num       = hal_FPGA_query_build(); <-- CRASHES REV 2 BOARDS!! */
+    mc.fpga_build_num       = moniBEShort(0);
     mc.sw_config_len        = moniBEShort(10);
-    mc.dom_mb_sw_build_num  = moniBEShort(ICESOFT_BUILD); /* From hal/dom-ws */
+    mc.dom_mb_sw_build_num  = moniBEShort(0); /* How to get this? */
     mc.msg_hdlr_major       = MSGHANDLER_MAJOR_VERSION;
     mc.msg_hdlr_minor       = MSGHANDLER_MINOR_VERSION;
     mc.exp_ctrl_major       = EXP_MAJOR_VERSION;
@@ -319,7 +307,6 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.trig_config_info     = moniBELong(0);
     mc.atwd_readout_info    = moniBELong(0);
   }
-
 
   // skip:
   mr.dataLen = sizeof(mc);
@@ -370,8 +357,8 @@ void moniFillBogusHdwrStateMessage(struct moniHardware *mh) {
 
 
 /* Type MONI_TYPE_HDWR_STATE_MSG - log dom state message */
-void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature, 
-				long spe_sum, long mpe_sum) {
+void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature) {
+  unsigned long spe, mpe;
   struct moniRec mr;
   struct moniHardware mh;
   int test = FALSE;
@@ -408,10 +395,10 @@ void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature,
     mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(halReadBaseDAC());
     mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadBaseADC());
     mh.DOM_MB_TEMPERATURE        = moniBEShort(temperature);
-    //spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
-    //mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
-    mh.SPE_RATE                  = moniBELong(spe_sum);
-    mh.MPE_RATE                  = moniBELong(mpe_sum);
+    spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
+    mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
+    mh.SPE_RATE                  = moniBELong(spe);
+    mh.MPE_RATE                  = moniBELong(mpe);
   }
   mr.dataLen = sizeof(mh);
   mr.fiducial.fstruct.moniEvtType = MONI_TYPE_HDWR_STATE_MSG;
@@ -477,36 +464,6 @@ void moniInsertDisablePMT_HV_Message(unsigned long long time) {
   mr.time = time;
   mr.data[0] = DOM_SLOW_CONTROL;
   mr.data[1] = DSC_DISABLE_PMT_HV;
-  moniInsertRec(&mr);
-}
-
-
-
-void moniInsertLCModeChangeMessage(unsigned long long time, UBYTE mode) {
-  struct moniRec mr;
-  mr.dataLen = 3;
-  mr.fiducial.fstruct.moniEvtType = MONI_TYPE_CONF_STATE_CHG_MSG;
-  mr.time = time;
-  mr.data[0] = DOM_SLOW_CONTROL;
-  mr.data[1] = DSC_SET_LOCAL_COIN_MODE;
-  mr.data[2] = mode;
-  moniInsertRec(&mr);
-}
-
-
-void moniInsertLCWindowChangeMessage(unsigned long long time,
-                                     ULONG up_pre_ns, ULONG up_post_ns,
-                                     ULONG dn_pre_ns, ULONG dn_post_ns) {
-  struct moniRec mr;
-  mr.dataLen = 2+4*sizeof(ULONG);
-  mr.fiducial.fstruct.moniEvtType = MONI_TYPE_CONF_STATE_CHG_MSG;
-  mr.time = time;
-  mr.data[0] = DOM_SLOW_CONTROL;
-  mr.data[1] = DSC_SET_LOCAL_COIN_WINDOW;
-  formatLong(up_pre_ns,  &(mr.data[2]));
-  formatLong(up_post_ns, &(mr.data[6]));
-  formatLong(dn_pre_ns,  &(mr.data[10]));
-  formatLong(dn_post_ns,  &(mr.data[14]));
   moniInsertRec(&mr);
 }
 

@@ -6,30 +6,30 @@
 extraction routines. 
 */
 
-
-
-#define MESSAGE_FLAG_VALUE 1
-#define PACKET_SIZE_VALUE 8 
-#define MAX_TOTAL_MESSAGE 4092
-#define MAXDATA_VALUE (MAX_TOTAL_MESSAGE - MSG_HDR_LEN)
-
 /* private per instance data */
 #define MSG_HDR_LEN 8
 typedef struct {
-  union HEAD {
-    struct HD {
-      UBYTE mt;
-      UBYTE mst;
-      UBYTE dlenHI;
-      UBYTE dlenLO;
-      UBYTE res[2];
-      UBYTE msgID;
-      UBYTE status;
-    } hd;
-    UBYTE h[MSG_HDR_LEN];
-  } head;  
-  UBYTE data[MAXDATA_VALUE];
+	union HEAD{
+	 struct HD {
+	  UBYTE mt;
+	  UBYTE mst;
+	  UBYTE dlenHI;
+	  UBYTE dlenLO;
+	  UBYTE res[2];
+	  UBYTE msgID;
+	  UBYTE status;
+	 } hd;
+	 UBYTE h[MSG_HDR_LEN];
+	} head;  
+  UBYTE *data;
 } MESSAGE_STRUCT;
+
+#define MESSAGE_FLAG_VALUE 1
+#define PACKET_SIZE_VALUE 8 
+/* JEJ Fixed: driver only does up to 4092 bytes */
+//#define MAXDATA_VALUE (4096 - MSG_HDR_LEN)
+#define MAXDATA_VALUE (4092 - MSG_HDR_LEN)
+
 
 #define MEM_ERROR 0
 #define MEM_CREATE_ERROR -1

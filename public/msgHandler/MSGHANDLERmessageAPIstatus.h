@@ -26,7 +26,6 @@
 #define MSGHAND_ECHO_MSG 18
 #define MSGHAND_ACCESS_MEMORY_CONTENTS 20
 #define MSGHAND_REBOOT_CPU_FLASH 23
-#define MSGHAND_GET_DOMAPP_RELEASE 24
 
 /* message handler specific errors */
 #define MSGHAND_unknown_server 4
@@ -167,17 +166,5 @@
 	none
    Size of returned values in data portion: 
 	none */
-
-/* Response to:
-        subType: MSGHAND_GET_DOMAPP_RELEASE
-   Passed values:
-        none
-   Size of passed values:
-        0
-   Returned values in data portion of message:
-        Character string w/o null termination
-   Size of returned values in data portion:
-        variable 
-*/
 
 #endif

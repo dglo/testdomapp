@@ -1,0 +1,1 @@
+-include ../dom-loader/$(PLATFORM_PUB_ROOT)/loader/loaderMods.mk

@@ -5,8 +5,8 @@
  * either over a socket or through the DOM Hub device driver
  * running in simulation mode (sim_queue).
  * $Rev $
- * $Author: arthur $
- * $Date: 2006-07-21 19:36:34 $
+ * $Author: mcp $
+ * $Date: 2003-07-05 19:20:00 $
  */
 
 /** system include files */

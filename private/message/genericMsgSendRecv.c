@@ -2,15 +2,18 @@
  *   @file genericMsgSendRecv.c
  * Methods to send and receive messages either over a socket or 
  * using the device driver files
- * $Revision: 1.1.1.15 $
+ * $Revision: 1.3 $
  * @author John Jacobsen, John J. IT Svcs, for LBNL and IceCube
  * Parts of this are based on code by Chuck McParland
- * $Date: 2006-07-21 19:36:34 $
+ * $Date: 2003-07-05 19:20:00 $
  */
 
-#include <string.h>
-#include <unistd.h>
-
+#if defined (CYGWIN) || defined (LINUX)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#endif
 /** project include files */
 #include "msgHandler/msgHandlerTest.h"
 #include "domapp_common/DOMtypes.h"
@@ -218,6 +221,7 @@ int gmsr_sendMessageGeneric(int filedes,
    */
   long sendlen;
   int wrote;
+  static char sub[] = "gmsr_sendMessageGeneric";
   char txbuf[MAXDATA_VALUE + MSG_HDR_LEN]; // + sizeof(long)];
 
   if(sendBuffer_p == 0) {
@@ -242,10 +246,17 @@ int gmsr_sendMessageGeneric(int filedes,
 	   Message_getData(sendBuffer_p), Message_dataLen(sendBuffer_p));
   }
 
+  pfprintf(stderr,"%s: Prepared message buffer.\n", sub);
 
   pfprintf(stderr,"write.\n");
 
   wrote = write(filedes, txbuf, sendlen);
+
+//  if(wrote != sendlen) {
+//    pfprintf(stderr,"%s: Error or incomplete send (%d).\n",sub, wrote);
+//} else {
+//    pfprintf(stderr,"%s: Send %d bytes successfully.\n",sub, wrote);
+//}
 
   return wrote;
 }

@@ -20,7 +20,7 @@
 #define DSC_ERROR_STR_LEN 80
 
 /* default maximums for PMT HV anode and dynode */
-#define PMT_HV_DEFAULT_MAX 4095
+#define PMT_HV_DEFAULT_MAX 600
 
 /* Data Access error strings */
 /* for COMMON_No_Errors */
@@ -63,9 +63,6 @@
 #define DSC_RATE_METERS_UNRESPONSIVE "DSC: Rate meters unresponsive."
 /* for DSC_bad_flasher_param */
 #define DSC_BAD_FLASHER_PARAM "DSC: Bad flasher parameter."
-
-#define DSC_ILLEGAL_LC_MODE "DSC: Illegal Local Coincidence Mode"
-#define DSC_LC_WINDOW_FAIL "DSC: Failed to set local coin. windows (check values!)"
 
 /* domSControl entry point */
 void domSControlInit(void);

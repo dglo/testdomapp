@@ -397,22 +397,24 @@ void formatEngineeringEvent(UBYTE *event) {
 
     /* set to match trigger mode values -DH */
 
-    if(FPGA_trigger_mode == TEST_PATTERN_TRIG_MODE) {
-      *event++ = 0x0;
+    switch(FPGA_trigger_mode) {
+    case TEST_PATTERN_TRIG_MODE:
+      *event++ = 0;
+      break;
+    case CPU_TRIG_MODE:
+      *event++ = 1;
+      break;
+    case TEST_DISC_TRIG_MODE:
+      *event++ = 2;
+      break;
+    default:
+      *event++ = 0x80;
+      break;
     }
-    if(FPGA_trigger_mode == CPU_TRIG_MODE) {
-      *event++ = 0x1;
-    }
-    else if (FPGA_trigger_mode == TEST_DISC_TRIG_MODE) {
-      *event++ = 0x2; /* we know this is SPE disc trigger so set the byte to 0x2 -DH */
-    }
-    else {
-      *event++ = 0x80; /* default when trig mode unset or unrecognized - currently test pattern -DH */
-    }
-
+ 
 //  spare byte
     *event++ = Spare;
-
+    
 //  insert the time
     event = TimeMove(event, (FPGA_trigger_mode == TEST_DISC_TRIG_MODE ? 1 : 0));
 

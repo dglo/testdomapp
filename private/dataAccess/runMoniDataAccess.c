@@ -34,15 +34,13 @@ int main(int argc, char *argv[]) {
 
   /* try inserting a message */
   for(irec=0; irec < 1023; irec++) {
-    //time=hal_FPGA_getClock();
-    time = hal_FPGA_TEST_get_local_clock();
+    time=hal_FPGA_getClock();
     moniInsertDiagnosticMessage(msg,&time,strlen(msg));
   }
 
   /* try to get it back */
   for(irec=0; irec < 1023; irec++) {
     ms = moniFetchRec(&myMoniRec);
-    moniAcceptRec();
 
     if(ms != MONI_OK) {
       printf(PROG "Couldn't fetch record: status was %d.\n", (int) ms);
@@ -71,7 +69,6 @@ int main(int argc, char *argv[]) {
   printf(PROG "Trying again... should return MONI_NODATA... ");
 
   ms = moniFetchRec(&myMoniRec);
-  moniAcceptRec();
 
   if(ms != MONI_NODATA) {
     printf(PROG "\nNo joy.  Return value was %d.\n", (int) ms);
@@ -83,14 +80,11 @@ int main(int argc, char *argv[]) {
   printf(PROG "Overflowing buffer just for fun, then reading back.\n");
   /* blow buffer, just for fun */
   for(irec=0; irec < 1028; irec++) {
-    //time=hal_FPGA_getClock();
-    time = hal_FPGA_TEST_get_local_clock();
+    time=hal_FPGA_getClock();
     moniInsertDiagnosticMessage(msg,&time,strlen(msg));
   }
 
   ms = moniFetchRec(&myMoniRec);
-  moniAcceptRec();
-
 
   if(ms != MONI_OVERFLOW) {
     printf(PROG "Expected MONI_OVERFLOW, got %d.\n", (int) ms);
@@ -100,11 +94,9 @@ int main(int argc, char *argv[]) {
   }
   
   printf(PROG "Trying one more insert and two reads.\n");
-  //time=hal_FPGA_getClock();
-  time = hal_FPGA_TEST_get_local_clock();
+  time=hal_FPGA_getClock();
   moniInsertDiagnosticMessage(msg,&time,strlen(msg));
   ms = moniFetchRec(&myMoniRec);
-  moniAcceptRec();
   if(ms != MONI_OK) {
     printf(PROG "Expected MONI_OK, got %d.\n", (int) ms);
     exit(-1);
@@ -113,7 +105,6 @@ int main(int argc, char *argv[]) {
   }
 
   ms = moniFetchRec(&myMoniRec);
-  moniAcceptRec();
   if(ms != MONI_NODATA) {
     printf(PROG "Expected MONI_NODATA, got %d.\n", (int) ms);
     exit(-1);

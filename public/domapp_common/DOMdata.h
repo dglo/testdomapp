@@ -10,9 +10,6 @@
 #define ATWD0 0
 #define ATWD1 1
 
-#define ATWDCHSIZ 128
-#define FADCSIZ   256
-
 /* data pattern of 0's */
 #define ZERO 0
 

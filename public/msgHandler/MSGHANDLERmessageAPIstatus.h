@@ -1,12 +1,16 @@
 /* MSGHANDLERmessagerAPIstatus.h  */
-#ifndef _MSHHAND_MESSAGE_API_STATUS_H_
-#define _MSHHAND_MESSAGE_API_STATUS_H_
 
 /* This file contains subtype values for the 
    DAQ<=>DOM messaging API used by the Message
    Handler service.  
 
+   April 27, 1999
    Chuck McParland */
+
+
+#ifndef _MSHHAND_MESSAGE_API_STATUS_
+#define _MSHHAND_MESSAGE_API_STATUS_
+
 
 /* message API subtype values. This field is not
    declared as an enum because each service declares
@@ -24,9 +28,10 @@
 #define MSGHAND_CLR_MSG_STATS 16
 #define	MSGHAND_GET_ATWD_ID 17
 #define MSGHAND_ECHO_MSG 18
+#define MSGHAND_GET_DOM_POSITION 19
 #define MSGHAND_ACCESS_MEMORY_CONTENTS 20
-#define MSGHAND_REBOOT_CPU_FLASH 23
-#define MSGHAND_GET_DOMAPP_RELEASE 24
+#define MSGHAND_REBOOT_CPU_ATMEL 21
+#define MSGHAND_REBOOT_CPU_ON_CHIP 22
 
 /* message handler specific errors */
 #define MSGHAND_unknown_server 4
@@ -143,41 +148,53 @@
    Size of returned values in data portion: */
 #define MSGHAND_GET_ATWD_ID_LEN 8	
 
+
 /* Response to: 
-	subType: MSGHAND_ACCESS_MEMORY_CONTENTS 
+	subType: MSGHANDR_GET_DOM_POSITION 
+   Passed values:
+	none
+   Size of passed values:
+	0
+   Returned values in data portion
+	UBYTE DOM_string_id
+	UBYTE DOM_position_id
+   Size of returned values in data portion: */
+#define MSGHAND_GET_DOM_POSITION_LEN 2
+
+/* Response to: 
+	subType: MSGHANDR_ACCESS_MEMORY_CONTENTS 
    Passed values:
 	UBYTE byte (==0) or long (==1)
 	UBYTE read (==0) or write (==1)
 	USHORT numReads (must be 1 for writes)
 	ULONG address (in application mode)
-   Size of passed values: */
-#define MSGHAND_ACCESS_MEMORY_CONTENTS_REQ_LEN 8
-/* Returned values in data portion
+   Size of passed values:
+	8
+   Returned values in data portion
 	bytes or longs read
    Size of returned values in data portion: 
 	number of bytes read */
 
 /* Response to: 
-	subType: MSGHANDR_REBOOT_FLASH 
+	subType: MSGHANDR_REBOOT_CPU_ATMEL 
    Passed values:
-	none
-   Size of passed values: 
-	0
+	ULONG magic number (0x01020304)
+   Size of passed values:
+	8
    Returned values in data portion
 	none
    Size of returned values in data portion: 
 	none */
 
-/* Response to:
-        subType: MSGHAND_GET_DOMAPP_RELEASE
+/* Response to: 
+	subType: MSGHANDR_REBOOT_CPU_ON_CHIP 
    Passed values:
-        none
+	ULONG magic number (0x01020304)
    Size of passed values:
-        0
-   Returned values in data portion of message:
-        Character string w/o null termination
-   Size of returned values in data portion:
-        variable 
-*/
+	8
+   Returned values in data portion
+	none
+   Size of returned values in data portion: 
+	none */
 
 #endif

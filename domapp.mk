@@ -15,9 +15,9 @@
 	$(OBJCOPY) -O binary $*-raw.elf $*.bin
 
 OBJS  = DOMdataCompression.o \
-	message.o             compressEvent.o \
+	message.o \
 	commonServices.o      domSControlRoutines.o  messageBuffers.o \
-	dataAccess.o          moniDataAccess.o       engFormat.o  \
+	dataAccess.o          moniDataAccess.o \
 	dataAccessRoutines.o  expControl.o           msgHandler.o \
 	domSControl.o         genericMsgSendRecv.o   lbm.o
 

@@ -1,36 +1,18 @@
-/* msgHandler.c */
 /*
-This service reads a message from a fifo
-and puts it onto the destination stack
-described by message type field
-If destination cannot be determined, put
-message back to sender ( marked undeliverable)
+// function reads a message from a fifo
+// and puts it onto the destination stack
+// described by message type field
+// If destination cannot be determined, put
+// message back to sender ( marked undeliverable)
 */ 
 
-#include "hal/DOM_MB_types.h"
-#include "hal/DOM_MB_hal.h"
-#if defined (CYGWIN) || defined (LINUX)
-#include <string.h>
-#endif
-
-/* DOMtypes.h needed for Linux -- deal w/ using ifdefs? */
+#include "hal/DOM_MB_hal_simul.h"
 //#include "domapp_common/DOMtypes.h"
-#define TRUE 1
-#define FALSE 0
-
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
 #include "message/message.h"
 #include "msgHandler/msgHandler.h"
-#include "slowControl/domSControl.h"
-#include "expControl/expControl.h"
-#include "dataAccess/moniDataAccess.h"
-#include "dataAccess/dataAccess.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
-#include "domapp_common/version.h"
 #include "msgHandler/MSGHANDLERmessageAPIstatus.h"
 
 /* extern functions */
@@ -60,7 +42,7 @@ extern	ULONG tooMuchData;
 extern	ULONG IDMismatch;
 extern  ULONG CRCproblem;
 
-
+	
 /* struct that contains common service info for
 	this service. */
 COMMON_SERVICE_INFO msgHand;
@@ -80,29 +62,59 @@ void msgHandlerInit(void) {
     //FPGAPLDapi_init();
 } 
 
-void msgHandler(MESSAGE_STRUCT *M) {
+void msgHandler(MESSAGE_STRUCT *M)
+{
 
 	int msgReject=FALSE;
 	UBYTE *data;
 	UBYTE *tmpPtr;
+	int tmpInt;
+	int i;
 
 	/* preset the msgReject flag */
 	msgReject=FALSE;
 	switch ( Message_getType(M) ) {
 
 	    case DOM_SLOW_CONTROL:
-		/* forward to slow control */
-		domSControl(M);
+		/* push message on ControlStack */
+		if(TRUE) {
+		    SlowCntStackOvfl++;
+		    msgReject=TRUE;
+		    msgHand.msgProcessingErr++;
+		    strcpy(msgHand.lastErrorStr,
+			MSGHAND_SERVER_STACK_FULL);
+		    msgHand.lastErrorID=MSGHAND_server_stack_full;
+		    Message_setStatus(M,
+			SERVER_STACK_FULL|SEVERE_ERROR);
+		}
 		break;
 
-	    case DATA_ACCESS: 
-		/* forward to data access */
-		dataAccess(M);
-		break;
+	    /* case DATA_ACCESS: */
+		/* push message on LookBackStack */
+		/* if(TRUE) {
+		    DataAccStackOvfl++;
+		    msgReject=TRUE;
+		    msgHand.msgProcessingErr++;
+		    strcpy(msgHand.lastErrorStr,
+			MSGHAND_SERVER_STACK_FULL);
+		    msgHand.lastErrorID=MSGHAND_server_stack_full;
+		    Message_setStatus(M,
+			SERVER_STACK_FULL|SEVERE_ERROR);
+		}
+		break; */
 
 	    case EXPERIMENT_CONTROL:
-		/* forward to expControl */
-		expControl(M);
+	        /* push message on LookBackStack */
+	        if(TRUE) {
+		    ExpCntStackOvfl++;
+		    msgReject=TRUE;
+		    msgHand.msgProcessingErr++;
+		    strcpy(msgHand.lastErrorStr,
+			MSGHAND_SERVER_STACK_FULL);
+		    msgHand.lastErrorID=MSGHAND_server_stack_full;
+		    Message_setStatus(M,
+			SERVER_STACK_FULL|SEVERE_ERROR);
+		}
 		break;
 
 	    case TEST_MANAGER:
@@ -161,7 +173,7 @@ void msgHandler(MESSAGE_STRUCT *M) {
 		    case GET_LAST_ERROR_STR:
 			/* get error string for last error encountered */
 			strcpy(data,msgHand.lastErrorStr);
-			Message_setDataLen(M,strlen(msgHand.lastErrorStr)); 
+			Message_setDataLen(M,strlen(msgHand.lastErrorStr));
 			Message_setStatus(M,SUCCESS);
 			break;
 		    case CLEAR_LAST_ERROR:
@@ -232,9 +244,8 @@ void msgHandler(MESSAGE_STRUCT *M) {
 			break;
 		    case MSGHAND_GET_DOM_NAME:
 			/* get given name of this DOM hardware */
-			/* for now, we just return the ID */
-			strcpy(data,halGetBoardID());
-			Message_setDataLen(M,strlen(halGetBoardID()));
+			strcpy(data,halGetBoardName());
+			Message_setDataLen(M,strlen(halGetBoardName()));
 			Message_setStatus(M,SUCCESS);
 			break;
 		    case MSGHAND_GET_ATWD_ID:
@@ -309,20 +320,13 @@ void msgHandler(MESSAGE_STRUCT *M) {
 			Message_setDataLen(M,Message_dataLen(M));
 			Message_setStatus(M,SUCCESS);
 			break;
-		    case MSGHAND_REBOOT_CPU_FLASH:
-		 	/* hal reboot */
-			halSetFlashBoot();
-			halBoardReboot();
+		    case MSGHAND_GET_DOM_POSITION:
+			data[0]=0;
+			data[1]=2;
 			Message_setStatus(M,SUCCESS);
-			Message_setDataLen(M,0);
+			Message_setDataLen(M,MSGHAND_GET_DOM_POSITION_LEN);
 			break;
-		    case MSGHAND_GET_DOMAPP_RELEASE:
-		      Message_setStatus(M,SUCCESS);
-		      int len = strlen(DOMAPP_RELEASE);
-		      memcpy(data, DOMAPP_RELEASE, len);
-		      Message_setDataLen(M,len);
-		      break;
-		      /*----------------------------------- */
+		    /*----------------------------------- */
 		    /* unknown service request (i.e. message */
 		    /*	subtype), respond accordingly */
 		    default:

@@ -1,5 +1,4 @@
-/* domSControl.c */
-
+/* DOMSControl.c */
 /*
 Author: Chuck McParland
 Start Date: May 4, 1999
@@ -7,25 +6,17 @@ Description:
 	DOM Slow Control service thread.  
 	Performs all "standard" DOM service functions.
 Last Modification:
-Jan. 14 '04 Jacobsen -- add monitoring actions for state change operations
 */
 
-#include <string.h>
-
 /* DOM-related includes */
-#include "hal/DOM_MB_types.h"
-#include "hal/DOM_MB_hal.h"
-#include "hal/DOM_FPGA_regs.h"
-
+#include "hal/DOM_MB_hal_simul.h"
+//#include "domapp_common/DOMtypes.h"
 #include "message/message.h"
-#include "dataAccess/moniDataAccess.h"
-
 #include "slowControl/domSControl.h"
 #include "domapp_common/slowControl.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
-#include "slowControl/domSControlRoutines.h"
 #include "slowControl/DSCmessageAPIstatus.h"
 #include "domapp_common/DOMstateInfo.h"
 
@@ -37,18 +28,8 @@ extern USHORT unformatShort(UBYTE *buf);
 extern UBYTE DOM_state;
 extern UBYTE DOM_config_access;
 
-/* global storage */
-extern UBYTE FPGA_trigger_mode;
-extern int FPGA_ATWD_select;
-
 /* local functions, data */
 USHORT PMT_HV_max=PMT_HV_DEFAULT_MAX;
-BOOLEAN pulser_running = FALSE;
-USHORT pulser_rate = 0;
-UBYTE selected_mux_channel = 0;
-ULONG deadTime = 0;
-ULONG up_pre_ns, up_post_ns, dn_pre_ns, dn_post_ns;
-UBYTE LCmode = 0;
 
 /* struct that contains common service info for
 	this service. */
@@ -67,11 +48,9 @@ void domSControlInit(void) {
 }
 
 void domSControl(MESSAGE_STRUCT *M) {
-#define BSIZ 1024
-  //  char buf[BSIZ]; int n;
-  //  unsigned long long time;
 
     UBYTE *data;
+    int tempInt;
     UBYTE tmpByte;
     UBYTE *tmpPtr;
     USHORT tmpShort;
@@ -262,9 +241,6 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    /* format up success response */
 		    /* lock, access and unlock */
 		    halWriteDAC(tmpByte,unformatShort(&data[2]));
-		    moniInsertSetDACMessage(hal_FPGA_TEST_get_local_clock(),
-					    tmpByte, 
-					    unformatShort(&data[2]));
 		    Message_setStatus(M,SUCCESS);
 		}
 		Message_setDataLen(M,0);
@@ -283,8 +259,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
 		    break;
 		}
-		else if((!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE))
-			|| DOM_state==DOM_FB_RUN_IN_PROGRESS){
+		else if(!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE)){
 		    /* format up failure response */
 		    Message_setDataLen(M,0);
 		    domsc.msgProcessingErr++;
@@ -294,14 +269,12 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SERVICE_SPECIFIC_ERROR|WARNING_ERROR);
 		    break;
 		}
-		halWriteBaseDAC(PMT_HVreq);
-		moniInsertSetPMT_HV_Message(hal_FPGA_TEST_get_local_clock(),PMT_HVreq);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 
 	    case DSC_ENABLE_PMT_HV:
-		if(!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE)){
+		if(DOM_config_access==0){
 		    /* format up failure response */
 		    Message_setDataLen(M,0);
 		    domsc.msgProcessingErr++;
@@ -312,16 +285,13 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		/* lock, access and unlock */
-                halPowerUpBase();
-                halEnableBaseHV();
-		moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
+		halEnablePMT_HV();
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 	    case DSC_DISABLE_PMT_HV:
 		/* lock, access and unlock */
-		halPowerDownBase();
-		moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());		
+		halDisablePMT_HV();
 		/* format up success response */
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
@@ -329,7 +299,6 @@ void domSControl(MESSAGE_STRUCT *M) {
 	    case DSC_SET_PMT_HV_LIMIT:
 		/* store maximum value */
 		PMT_HV_max=unformatShort(data);
-		moniInsertSetPMT_HV_Limit_Message(hal_FPGA_TEST_get_local_clock(), PMT_HV_max);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -340,11 +309,9 @@ void domSControl(MESSAGE_STRUCT *M) {
 		Message_setStatus(M,SUCCESS);
 		break;
 	    case DSC_QUERY_PMT_HV:
-		//data[0]=halPMT_HVisEnabled();
-		data[0]=0;
+		data[0]=halPMT_HVisEnabled();
 		data[1]=0;
-		formatShort(halReadBaseADC(),&data[2]);
-		formatShort(halReadBaseDAC(),&data[4]);
+		formatShort(halReadPMT_HV(),&data[2]);
 		Message_setDataLen(M,DSC_QUERY_PMT_HV_LEN);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -367,177 +334,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SUCCESS);
 		}
 		break;
-	    case DSC_SET_TRIG_MODE:
-		/* store trigger mode, data access routines are
-		   responsible for checking legal trigger mode values */
-		FPGA_trigger_mode = data[0];
-		Message_setDataLen(M,0);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_GET_TRIG_MODE:
-		/* return trigger mode */
-		data[0] = FPGA_trigger_mode;
-		Message_setDataLen(M,DSC_GET_TRIG_MODE_LEN);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_SELECT_ATWD:
-		/* store ATWD select value */
-		if(data[0] == 0) {
-		    FPGA_ATWD_select = 0;
-		}
-		else {
-		    FPGA_ATWD_select = 1;
-		}
-		Message_setDataLen(M,0);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_WHICH_ATWD:
-		/* return ATWD select value */
-		data[0] = (UBYTE)FPGA_ATWD_select;
-		Message_setDataLen(M,DSC_WHICH_ATWD_LEN);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_MUX_SELECT:
-		/* select mux channel for ATWD channel 3 */
-		selected_mux_channel = data[0];
-		halSelectAnalogMuxInput(selected_mux_channel);
-		Message_setDataLen(M,0);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_WHICH_MUX:
-		/* return selected mux channel */
-		data[0] = selected_mux_channel;
-		Message_setDataLen(M,DSC_WHICH_MUX_LEN);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_SET_PULSER_RATE:
-		pulser_rate = unformatShort(&data[0]);
-		// hal set pulser rate (pulser_rate)
-		hal_FPGA_TEST_set_pulser_rate(pulser_rate);
-		Message_setDataLen(M,0);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_GET_PULSER_RATE:
-		formatShort(pulser_rate, &data[0]);
-		Message_setDataLen(M,DSC_GET_PULSER_RATE_LEN);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_SET_PULSER_ON:
-		pulser_running = TRUE;
-		// hal set pulser running
-		hal_FPGA_TEST_enable_pulser();
-		Message_setDataLen(M,0);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_SET_PULSER_OFF:
-		pulser_running = FALSE;
-		// hal set pulser  off
-		hal_FPGA_TEST_disable_pulser();
-		Message_setDataLen(M,0);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_PULSER_RUNNING:
-		data[0] = pulser_running;
-		Message_setDataLen(M,DSC_PULSER_RUNNING_LEN);
-		Message_setStatus(M,SUCCESS);
-		break;
-	    case DSC_GET_RATE_METERS:
-		formatLong((ULONG)hal_FPGA_TEST_get_spe_rate(),
-		    &data[0]);
-		formatLong((ULONG)hal_FPGA_TEST_get_mpe_rate(),
-		    &data[4]);
-		Message_setDataLen(M,DSC_GET_RATE_METERS_LEN);
-		Message_setStatus(M,SUCCESS);
-		break;  
-	    case DSC_SET_SCALER_DEADTIME:
-	        deadTime = unformatLong(data);
-		/* HAL expects an int here, but deadTime is passed as
-		   ULONG (unsigned) for convenience; should probably check
-		   for negative number, but just give to HAL as is for now; for 
-		   negatives HAL will just set to 50*2^15 nsec. */
-		hal_FPGA_TEST_set_deadtime((int)deadTime);
-                Message_setDataLen(M,0);
-                Message_setStatus(M,SUCCESS);
-		break;
-             case DSC_GET_SCALER_DEADTIME:
-                 formatLong(deadTime,&data[0]);
-                 Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
-                 Message_setStatus(M,SUCCESS);
-                 break;
-	     case DSC_SET_LOCAL_COIN_MODE:
-		 Message_setDataLen(M,0);
-		 if(data[0] == 0) {
-		   LCmode = data[0];
-       		   hal_FPGA_TEST_disable_spe_lc();
-		   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(), 
-						 LCmode);
-		   Message_setStatus(M,SUCCESS);
-		 } else if(data[0] == 1) {
-		   LCmode = data[0];
-		   hal_FPGA_TEST_enable_spe_lc(1, 1, DOM_HAL_LC_LOGIC_OR);
-                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
-                                                 LCmode);
-		   Message_setStatus(M,SUCCESS);
-                 } else if(data[0] == 2) { /* Upper ONLY */
-                   LCmode = data[0];
-                   hal_FPGA_TEST_enable_spe_lc(0, 1, DOM_HAL_LC_LOGIC_OR);
-                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
-                                                 LCmode);
-                   Message_setStatus(M,SUCCESS);
-                 } else if(data[0] == 3) { /* Lower ONLY */
-                   LCmode = data[0];
-                   hal_FPGA_TEST_enable_spe_lc(1, 0, DOM_HAL_LC_LOGIC_OR);
-                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
-                                                 LCmode);
-                   Message_setStatus(M,SUCCESS);
-		 } else if(data[0] == 4) { /* up AND down */
-		   LCmode = data[0];
-                   hal_FPGA_TEST_enable_spe_lc(1, 1, DOM_HAL_LC_LOGIC_AND);
-		   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
-                                                 LCmode);
-                   Message_setStatus(M,SUCCESS);
-		 } else {
-		   domsc.msgProcessingErr++;
-		   strcpy(domsc.lastErrorStr,DSC_ILLEGAL_LC_MODE);
-		   domsc.lastErrorID=DSC_Illegal_LC_Mode;
-		   domsc.lastErrorSeverity=FATAL_ERROR;
-		   Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
-		 }
-	         break;
-	     case DSC_GET_LOCAL_COIN_MODE:
-		 data[0] = LCmode;
-                 Message_setDataLen(M,1);
-		 Message_setStatus(M,SUCCESS);
-	         break;
-	     case DSC_SET_LOCAL_COIN_WINDOW:
-	         up_pre_ns  = unformatLong(&data[0]);
-	         up_post_ns = unformatLong(&data[4]);
-		 dn_pre_ns  = unformatLong(&data[8]);
-		 dn_post_ns = unformatLong(&data[12]);
-                 Message_setDataLen(M,0);
-
-		 if(hal_FPGA_TEST_set_lc_launch_window(up_pre_ns, up_post_ns,
-						       dn_pre_ns, dn_post_ns)) {
-		   domsc.msgProcessingErr++;
-		   strcpy(domsc.lastErrorStr,DSC_LC_WINDOW_FAIL);
-		   domsc.lastErrorID=DSC_LC_Window_Fail;
-		   domsc.lastErrorSeverity=FATAL_ERROR;
-		   Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
-		 } else {
-		   Message_setStatus(M,SUCCESS);
-		   moniInsertLCWindowChangeMessage(hal_FPGA_TEST_get_local_clock(),
-						   up_pre_ns, up_post_ns,
-						   dn_pre_ns, dn_post_ns);
-		 }		 
-	         break;
-	     case DSC_GET_LOCAL_COIN_WINDOW:
-	         formatLong(up_pre_ns,  &data[0]);
-		 formatLong(up_post_ns, &data[4]);
-		 formatLong(dn_pre_ns,  &data[8]);
-		 formatLong(dn_post_ns, &data[12]);
-                 Message_setDataLen(M,16);
-                 Message_setStatus(M,SUCCESS);
-	         break;
+		
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

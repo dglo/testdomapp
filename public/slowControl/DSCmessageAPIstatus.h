@@ -1,17 +1,16 @@
-/* DSCmessageAPIstatus.h */
-#ifndef _DSC_MESSAGE_API_STATUS_H_
-#define _DSC_MESSAGE_API_STATUS_H_
+/* DSCmessagerAPIstatus.h */
 
 /* This file contains subtype values for the 
    DAQ<=>DOM messaging API used by the Slow
    Control service.  
 
    March 7, 2003
-   Chuck McParland 
+   Chuck McParland */
 
-   Mods by Jacobsen in 2004 to accommodate new messages */
 
-   
+#ifndef _DSC_MESSAGE_API_STATUS_
+#define _DSC_MESSAGE_API_STATUS_
+
 
 /* message API subtype values. This field is not
    declared as an enum because each service declares
@@ -32,24 +31,6 @@
 #define DSC_GET_PMT_HV_LIMIT 28
 #define DSC_SET_PMT_HV_LIMIT 29
 #define DSC_READ_ONE_DAC 30
-#define DSC_SET_TRIG_MODE 31
-#define DSC_GET_TRIG_MODE 32
-#define DSC_SELECT_ATWD 33
-#define DSC_WHICH_ATWD 34
-#define DSC_MUX_SELECT 35
-#define DSC_WHICH_MUX 36
-#define DSC_SET_PULSER_RATE 37
-#define DSC_GET_PULSER_RATE 38
-#define DSC_SET_PULSER_ON 39
-#define DSC_SET_PULSER_OFF 40
-#define DSC_PULSER_RUNNING 41
-#define DSC_GET_RATE_METERS 42
-#define DSC_SET_SCALER_DEADTIME 43
-#define DSC_GET_SCALER_DEADTIME 44
-#define DSC_SET_LOCAL_COIN_MODE 45
-#define DSC_GET_LOCAL_COIN_MODE 46
-#define DSC_SET_LOCAL_COIN_WINDOW 47
-#define DSC_GET_LOCAL_COIN_WINDOW 48
 
 
 /* Slow Control specific Last error ID values */
@@ -70,8 +51,7 @@
 #define DSC_violates_constraints 18
 #define DSC_rate_meters_unresponsive 19
 #define DSC_bad_flasher_param 20
-#define DSC_Illegal_LC_Mode 21
-#define DSC_LC_Window_Fail 22
+
 
 /* These are DOM Slow Control specific return message
    formats and values.  In most cases, they are formatted
@@ -251,147 +231,5 @@ Size of returned values in data portion:
 #define DSC_READ_ONE_DAC_LEN 2
 /* Last Error ID for failed invocation 
 #define DSC_Illegal_DAC_Channel 5 */
-
-/* Response to:
-	subType: DSC_SET_TRIG_MODE
-   Passed values:
-        UBYTE TRIGGER_MODE
-	values: */
-#define TEST_PATTERN_TRIG_MODE 0
-#define CPU_TRIG_MODE 1
-#define TEST_DISC_TRIG_MODE 2
-#define FB_TRIG_MODE 3
-/* Size of passed values: */
-#define DSC_SET_TRIG_MODE_REQ_LEN 1
-/* Returned values in data portion of message:
-        none
-   Size of returned values in data portion: 
-	0 */
-
-/* Response to:
-        subType: DSC_GET_TRIG_MODE
-   Passed values:
-        UBYTE TRIGGER_MODE
-	see DSC_SET_TRIG_MODE
-   Size of passed values: */
-/* Returned values in data portion of message:
-        UBYTE TRIGGER_MODE
-   Size of returned values in data portion: */
-#define DSC_GET_TRIG_MODE_LEN 1
- 
-/* Response to:
-        subType: DSC_SELECT_ATWD
-   Passed values:
-        UBYTE ATWD
-   Size of passed values: */
-/* Returned values in data portion of message:
-	none
-   Size of returned values in data portion: */
-
-/* Response to:
-        subType: DSC_WHICH_ATWD
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-        UBYTE ATWD
-   Size of returned values in data portion: */
-#define DSC_WHICH_ATWD_LEN 1
-
-/* Response to:
-        subType: DSC_MUX_SELECT
-   Passed values:
-	UBYTE MUX_CHANNEL
-   Size of passed values: */
-#define DSC_MUX_SELECT_REQ_LEN 1
-/* Returned values in data portion of message:
-        none
-   Size of returned values in data portion: */
-
-/* Response to:
-        subType: DSC_WHICH_MUX
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-        UBYTE MUX_CHANNEL
-   Size of returned values in data portion: */
-#define DSC_WHICH_MUX_LEN 1
-
-/* Response to:
-        subType: DSC_SET_PULSER_RATE
-   Passed values:
-	USHORT PULSER_RATE
-   Size of passed values: */
-#define DSC_SET_PULSER_RATE_REQ_LEN 2
-/* Returned values in data portion of message:
-        none
-   Size of returned values in data portion: */
-
-/* Response to:
-        subType: DSC_GET_PULSER_RATE
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-	USHORT PULSER_RATE
-   Size of returned values in data portion: */
-#define DSC_GET_PULSER_RATE_LEN 2
-
-/* Response to:
-        subType: DSC_SET_PULSER_ON
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-        nono
-   Size of returned values in data portion: */
-
-/* Response to:
-        subType: DSC_SET_PULSER_OFF
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-   Size of returned values in data portion: */
-
-/* Response to:
-        subType: DSC_PULSER_RUNNING
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-        UBYTE PULSER_RUNNING
-   Size of returned values in data portion: */
-#define DSC_PULSER_RUNNING_LEN 1
-
-/* Response to:
-        subType: DSC_GET_RATE_METERS
-   Passed values:
-	none
-   Size of passed values: */
-/* Returned values in data portion of message:
-        ULONG SPE_RATE_PER_TENTH_SEC
-        ULONG MPE_RATE_PER_TENTH_SEC
-   Size of returned values in data portion: */
-#define DSC_GET_RATE_METERS_LEN 8
-
-/* Response to:
-        subType: DSC_SET_SCALER_DEADTIME
-   Passed values:
-        ULONG SCALER_DEADTIME
-   Returned values: 
-        None
-*/
-
-/* Response to: 
-         subType: DSC_GET_SCALER_DEADTIME
-    Passed values: 
-         none 
-    Size of passed values: */
-/* Returned values in data portion of message:
-         ULONG SCALER_DEADTIME
-    Size of returned values in data portion: */
-#define DSC_GET_SCALER_DEADTIME_LEN 4
 
 #endif

@@ -10,17 +10,12 @@ use strict;
 print "Welcome to $0.\n";
 
 my $tag;
-my $bfd_or_tag;
-my $deliver;
-
 do {
     print "(N)ew tag or (B)FD-based tag? "; 
     my $resp = <STDIN>; chomp $resp;
     if($resp =~ /^n/i) {
-	$bfd_or_tag = "TAG";
 	print "Enter tag name: "; $tag = <STDIN>; chomp $tag;
     } elsif($resp =~ /b/i) {
-	$bfd_or_tag = "BFD";
 	my $log = `cvs log project.mk | grep V`;
 	my $def = "";
 	print "List of existing tags:\n$log\n";
@@ -39,19 +34,13 @@ do {
 	    my $resp = <STDIN>; chomp $resp;
 	    if($resp =~ /^ma/) {
 		$major++;
-		$minor = 0;
-		$bug   = 0;
-		$deliver = "-j";
-		$tag = sprintf "V%02d-%02d-%02d", $major, $minor, $bug;
+		$tag = "V$major"."-$minor"."-$bug";
 	    } elsif($resp =~ /^mi/) {
 		$minor++;
-		$bug = 0;
-		$deliver = "-n";
-                $tag = sprintf "V%02d-%02d-%02d", $major, $minor, $bug;
+		$tag = "V$major"."-$minor"."-$bug";
 	    } elsif($resp =~ /^b/) {
 		$bug++;
-		$deliver = "-b";
-                $tag = sprintf "V%02d-%02d-%02d", $major, $minor, $bug;
+		$tag = "V$major"."-$minor"."-$bug";
 	    } else {
 		print "Huh?\n";
 	    }
@@ -63,14 +52,10 @@ print "Create new release with release tag \"$tag\"? ";
 chomp(my $resp = <STDIN>);
 exit if($resp !~ /^y/i);
 
-print "Did you update RELEASE_NOTES for $tag? ";
-chomp(my $resp = <STDIN>);
-exit if($resp !~ /^y/i);
-
 my $header = "public/domapp_common/version.h";
 die "Can't find current $header!  Old version of domapp?\n" unless -f $header;
 print "Updating $header...\n";
-print `cvs update -A $header`;
+print `cvs update $header`;
 
 print "Creating new $header...\n";
 open H, ">$header" || die "Can't open $header: $!\n";
@@ -85,25 +70,6 @@ chomp(my $resp = <STDIN>);
 if($resp =~ /^y/) {
     print `cvs commit -m "Tagging current version as $tag..."`;
 }
-
-if($bfd_or_tag eq "TAG") {
-    print "Tag current release as $tag? ";
-    chomp(my $resp = <STDIN>);
-    if($resp =~ /^y/) {
-	print `cd ..; cvs tag $tag testdomapp; cd testdomapp`;
-    }
-} elsif($bfd_or_tag eq "BFD") {
-    print "Deliver $tag? ";
-    chomp(my $resp = <STDIN>);
-    if($resp =~ /^y/) {
-	chdir "..";
-	system "bfd deliver $deliver testdomapp";
-	chdir "testdomapp";
-    }
-}
-
-print "\n\nDone.\n";
-
 
 __END__
 

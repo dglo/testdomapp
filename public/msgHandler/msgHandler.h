@@ -1,23 +1,23 @@
 /* msgHandler.h */
-#ifndef _MSGHANDLER_H_
-#define _MSGHANDLER_H_
+#ifndef _MSGHANDLER_
+#define _MSGHANDLER_
 
 /* 
    Header file for defines, structs, etc. for
    the message handler Service. */
 
 /* message handler version info. */
-#define MSGHANDLER_MAJOR_VERSION 10
-#define MSGHANDLER_MINOR_VERSION 1
-/* major version 10	10 May 2003
-	beginning of icecube domapp code chain, version 10 coded as
-	single threaded version for test purposes.
-*/
-/* minor version 1	5 July 2003
-	added command to access hal reboot code.
+#define MSGHANDLER_MAJOR_VERSION 3
+#define MSGHANDLER_MINOR_VERSION 2
+/* minor version 1	23 Nov 1999
+	added MSGHAND_GET_MEMORY_CONTENTS subtype to fetch byte and long word data by
+		address.
+   Minor Version 2 	8 Dec 1999
+	added code to reboot into DOMboot and/or on-chip boot
 */
  
-/* maximum length of msgHandler last error string */
+/* maximum length of Test Manager last
+   error string. */
 #define MSGHANDLER_ERROR_STR_LEN 80
 
 /* message handler error strings.  Even error

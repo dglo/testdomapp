@@ -2,15 +2,16 @@
  *   @file genericMsgSendRecv.c
  * Methods to send and receive messages either over a socket or 
  * using the device driver files
- * $Revision: 1.4 $
+ * $Revision: 1.1 $
  * @author John Jacobsen, John J. IT Svcs, for LBNL and IceCube
  * Parts of this are based on code by Chuck McParland
- * $Date: 2004-06-15 21:28:35 $
+ * $Date: 2003-05-05 06:47:14 $
  */
 
-#include <string.h>
-#include <unistd.h>
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
 /** project include files */
 #include "msgHandler/msgHandlerTest.h"
 #include "domapp_common/DOMtypes.h"
@@ -25,7 +26,7 @@
 
 #define pfprintf(...)  /* Use this to comment out debug lines */
 
-#if defined (LINUX) || defined (CYGWIN)
+
 int gmsr_get_file_descriptor_mode(int filedes) {
   /** Determine mode from file descriptor. 
       @param filedes The File Descriptor we're interested in 
@@ -203,7 +204,6 @@ int gmsr_recvMessageGeneric(int filedes,
     break;
   }
 }
-#endif
 
 int gmsr_sendMessageGeneric(int filedes,
 			    MESSAGE_STRUCT *sendBuffer_p) {
@@ -217,10 +217,11 @@ int gmsr_sendMessageGeneric(int filedes,
       @author Jacobsen
    */
   long sendlen;
-  int wrote;
+  ssize_t wrote;
+  static char sub[] = "gmsr_sendMessageGeneric";
   char txbuf[MAXDATA_VALUE + MSG_HDR_LEN]; // + sizeof(long)];
 
-  if(sendBuffer_p == 0) {
+  if(sendBuffer_p == NULL) {
     return 0; /* Bad source pointer --> no data sent */
   }
 
@@ -242,10 +243,17 @@ int gmsr_sendMessageGeneric(int filedes,
 	   Message_getData(sendBuffer_p), Message_dataLen(sendBuffer_p));
   }
 
+  pfprintf(stderr,"%s: Prepared message buffer.\n", sub);
 
   pfprintf(stderr,"write.\n");
 
   wrote = write(filedes, txbuf, sendlen);
+
+//  if(wrote != sendlen) {
+//    pfprintf(stderr,"%s: Error or incomplete send (%d).\n",sub, wrote);
+//} else {
+//    pfprintf(stderr,"%s: Send %d bytes successfully.\n",sub, wrote);
+//}
 
   return wrote;
 }

@@ -11,23 +11,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* For clock: */
-#include "hal/DOM_FPGA_regs.h"
 #include "hal/DOM_MB_types.h"
 #include "engFormat.h"
 #include "compressEvent.h"
-#include "dataAccess/moniDataAccess.h"
 
 /* Externally available pedestal waveforms */
 extern unsigned short atwdpedavg[2][4][128];
 extern unsigned short fadcpedavg[256];
 
 /* Road grader thresholds for each ATWD and channel, and FADC */
-USHORT atwdThreshold[2][4] = {
-  {DEFAULT_ATWD_THRESH,DEFAULT_ATWD_THRESH,DEFAULT_ATWD_THRESH,DEFAULT_ATWD_THRESH},
-  {DEFAULT_ATWD_THRESH,DEFAULT_ATWD_THRESH,DEFAULT_ATWD_THRESH,DEFAULT_ATWD_THRESH}
-};
-USHORT fadcThreshold = DEFAULT_FADC_THRESH;
+static USHORT atwdThreshold[2][4];
+static USHORT fadcThreshold;
 
 /*****************************************************************/
 /*
@@ -159,12 +153,10 @@ void setATWDRoadGradeThreshold(USHORT threshold, int atwd, int ch) {
 
     if (((atwd == 0) || (atwd == 1)) && (ch >= 0) && (ch <= 3))
         atwdThreshold[atwd][ch] = threshold;
-    //mprintf("atwdthreshold[%d][%d] = %hu", atwd, ch, threshold);
 
 }
 
 void setFADCRoadGradeThreshold(USHORT threshold) {
-    //mprintf("fadcthreshold = %hu", threshold);
     fadcThreshold = threshold;
 }
 
@@ -202,11 +194,12 @@ void pedestalSub(USHORT *databuf, USHORT *pedbuf, USHORT len) {
     short val;
     int i;
 
-    for (i = 0; i < len; i++) {
-      val = databuf[i] - pedbuf[i];
-      /* Invert and set negative values to zero */
-      databuf[i] = (val > 0) ? val : 0;
-    }
+    for (i = 0; i < len; i++)
+        val = databuf[i] - pedbuf[i];
+
+    /* Invert and set negative values to zero */
+    databuf[i] = (val < 0) ? -val : 0;
+
 }
 
 /*****************************************************************/
@@ -218,6 +211,8 @@ void pedestalSub(USHORT *databuf, USHORT *pedbuf, USHORT len) {
  *
  */
 void compressHeader(const UBYTE *header_in, ULONG *header_out) {
+
+    int i;
 
     /* WORD 0 */
     /* 0 - Set compression bit */
@@ -253,6 +248,7 @@ void compressHeader(const UBYTE *header_in, ULONG *header_out) {
     /* WORD 1 */
     /* 31:0 - lower 32b of timestamp */
     header_out[1] = getEngTimestampLo(header_in);
+
 }
 
 /*****************************************************************/
@@ -286,6 +282,7 @@ void setEventLength(ULONG *header, USHORT len) {
 USHORT compressEvent(const UBYTE *buf_in, ULONG *buf_out) {
 
     USHORT word_idx_out = 0;
+    USHORT byte_idx_in  = 0;
 
     const UBYTE *data;
     USHORT waves[768];
@@ -305,19 +302,16 @@ USHORT compressEvent(const UBYTE *buf_in, ULONG *buf_out) {
         
         /* Copy to working buffer in SRAM */
         /* Note that FADC data is always size short */
-        for (i = 0; i < data_len; i++) 
-	  waves[len_in+i] = ((data[i*2]&0xFF)<<8)|data[i*2+1];
-	  //waves[len_in+i] = *(USHORT *)(&data[i*2]);
+        for (i = 0; i < data_len; i++)
+            waves[len_in+i] = *(USHORT *)(&data[i*2]);
 
         /* Subtract "pedestal" (really a baseline) */
-	//this is now done in dataAccessRoutines.c
-        //pedestalSub(waves+len_in, fadcpedavg, data_len);
+        pedestalSub(waves+len_in, fadcpedavg, data_len);
 
         /* Road-grades the input at the threshold level */
         /* A threshold of zero totally disables this */
-	//this is now done in dataAccessRoutines.c
-        //if (fadcThreshold > 0)
-        //  roadGrade(waves+len_in, data_len, fadcThreshold);
+        if (fadcThreshold > 0)
+            roadGrade(waves+len_in, data_len, fadcThreshold);
 
         /* Fill samples we have no data for with zero */
         for (i = data_len; i < 255; i++)
@@ -326,9 +320,8 @@ USHORT compressEvent(const UBYTE *buf_in, ULONG *buf_out) {
         len_in += 255;
     }
 
-
     /* Compress all ATWD channels available */
-    //int atwd = getEngATWDNumber(buf_in);
+    int atwd = getEngATWDNumber(buf_in);
     for (ch = 0; ch < 4; ch++) {
         
         if ((data = getEngChannelData(buf_in, ch)) != NULL) {
@@ -337,20 +330,16 @@ USHORT compressEvent(const UBYTE *buf_in, ULONG *buf_out) {
             data_sz = getEngDataSize(buf_in, ch);
 
             /* Copy to working buffer in SRAM */
-            for (i = 0; i < data_len; i++) {
-	      //waves[len_in+i] = *(USHORT *)(&data[i*data_sz]);
-	      waves[len_in+i] = ((data[i*2]&0xFF)<<8)|data[i*2+1];
-	    }
+            for (i = 0; i < data_len; i++)
+                waves[len_in+i] = *(USHORT *)(&data[i*data_sz]);
 
             /* Subtract pedestal values */
-	    //this is now done in dataAccessRoutines.c
-	    //pedestalSub(waves+len_in, atwdpedavg[atwd][ch], data_len);
+            pedestalSub(waves+len_in, atwdpedavg[atwd][ch], data_len);
 
             /* Road-grades the input at the threshold level */
             /* A threshold of zero totally disables this */
-	    //this is now done in dataAccessRoutines.c
-            //if (atwdThreshold[atwd][ch] > 0)
-            //    roadGrade(waves+len_in, data_len, atwdThreshold[atwd][ch]);
+            if (atwdThreshold[atwd][ch] > 0)
+                roadGrade(waves+len_in, data_len, atwdThreshold[atwd][ch]);
 
             /* Fill samples we have no data for with zero */
             for (i = data_len; i < 128; i++)
@@ -365,6 +354,8 @@ USHORT compressEvent(const UBYTE *buf_in, ULONG *buf_out) {
 
     /* Update length in header */
     setEventLength(buf_out, word_idx_out * 4);
+
     /* Return number of word used in the output buffer */
     return word_idx_out;
+
 }

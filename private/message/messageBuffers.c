@@ -6,6 +6,9 @@
 #include "message/message.h"
 #include "message/messageBuffers.h"
 
+/* for use under cygwin and linux */
+#include <pthread.h>
+
 /* declare how many message and data buffers we will create */
 #define MAX_MSG 16
 	
@@ -17,25 +20,30 @@ UBYTE msgData[MAX_MSG][MAXDATA_VALUE];
 int nextMsgFree=0;
 int lastMsgFree=0;
 int freeListCorrupt=0;
+pthread_mutex_t msgBuffersMutex=PTHREAD_MUTEX_INITIALIZER;
 
 void messageBuffers_init()
 {
     int i;
 
+    pthread_mutex_lock(&msgBuffersMutex);
+
     for(i=0;i<MAX_MSG;i++) {
 	msgFreeList[i]=&msgHdr[i];
-#warning remove this entire file
-	//msgHdr[i].data=&msgData[i][0];
-   }
+	msgHdr[i].data=&msgData[i][0];
+    }
     nextMsgFree=0;
     lastMsgFree=0;
+
+    pthread_mutex_unlock(&msgBuffersMutex);
 }
 
 MESSAGE_STRUCT *messageBuffers_allocate()
 {
     
-    MESSAGE_STRUCT *m=0;
+    MESSAGE_STRUCT *m;
 
+    pthread_mutex_lock(&msgBuffersMutex);
 
     m=msgFreeList[nextMsgFree];
     if(m!=0) {
@@ -48,11 +56,14 @@ MESSAGE_STRUCT *messageBuffers_allocate()
 	}
     }
 
+    pthread_mutex_unlock(&msgBuffersMutex);
     return m;
 }
  	
 void messageBuffers_release(MESSAGE_STRUCT *m)
 {
+
+    pthread_mutex_lock(&msgBuffersMutex);
 
     if(msgFreeList[lastMsgFree]==0) {
 	msgFreeList[lastMsgFree]=m;
@@ -64,10 +75,13 @@ void messageBuffers_release(MESSAGE_STRUCT *m)
     else {
     	freeListCorrupt++;
     }
+    pthread_mutex_unlock(&msgBuffersMutex);
 }
 
 int messageBuffers_freeCnt() {
     int count;
+
+    pthread_mutex_lock(&msgBuffersMutex);
 
     if(nextMsgFree < lastMsgFree) {
 	count = lastMsgFree-nextMsgFree;
@@ -83,6 +97,8 @@ int messageBuffers_freeCnt() {
 	    count = MAX_MSG;
 	}
     }
+    /* release the lock */
+    pthread_mutex_unlock(&msgBuffersMutex);
     return count;
     
 }

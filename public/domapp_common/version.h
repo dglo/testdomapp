@@ -1,1 +1,1 @@
-#define DOMAPP_RELEASE "V01-08-01"
+#define DOMAPP_RELEASE "devel-rev3-patch1"

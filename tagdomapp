@@ -39,19 +39,16 @@ do {
 	    my $resp = <STDIN>; chomp $resp;
 	    if($resp =~ /^ma/) {
 		$major++;
-		$minor = 0;
-		$bug   = 0;
 		$deliver = "-j";
-		$tag = sprintf "V%02d-%02d-%02d", $major, $minor, $bug;
+		$tag = "V$major"."-$minor"."-$bug";
 	    } elsif($resp =~ /^mi/) {
 		$minor++;
-		$bug = 0;
 		$deliver = "-n";
-                $tag = sprintf "V%02d-%02d-%02d", $major, $minor, $bug;
+		$tag = "V$major"."-$minor"."-$bug";
 	    } elsif($resp =~ /^b/) {
 		$bug++;
 		$deliver = "-b";
-                $tag = sprintf "V%02d-%02d-%02d", $major, $minor, $bug;
+		$tag = "V$major"."-$minor"."-$bug";
 	    } else {
 		print "Huh?\n";
 	    }
@@ -86,15 +83,13 @@ if($bfd_or_tag eq "TAG") {
     print "Tag current release as $tag? ";
     chomp(my $resp = <STDIN>);
     if($resp =~ /^y/) {
-	print `cd ..; cvs tag $tag testdomapp; cd testdomapp`;
+	print `cd ..; cvs tag -r $tag testdomapp; cd testdomapp`;
     }
 } elsif($bfd_or_tag eq "BFD") {
     print "Deliver $tag? ";
     chomp(my $resp = <STDIN>);
     if($resp =~ /^y/) {
-	chdir "..";
-	system "bfd deliver $deliver testdomapp";
-	chdir "testdomapp";
+	print `cd ..; bfd deliver $deliver testdomapp; cd testdomapp`;
     }
 }
 

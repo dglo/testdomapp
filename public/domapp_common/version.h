@@ -1,1 +1,1 @@
-#define DOMAPP_RELEASE "V01-08-00"
+#define DOMAPP_RELEASE "testtag"

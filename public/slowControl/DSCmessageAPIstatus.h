@@ -378,13 +378,13 @@ Size of returned values in data portion:
 */
 
 /* Response to: 
-        subType: DSC_GET_SCALER_DEADTIME
-   Passed values: 
-        none 
-   Size of passed values: */
+         subType: DSC_GET_SCALER_DEADTIME
+    Passed values: 
+         none 
+    Size of passed values: */
 /* Returned values in data portion of message:
-        ULONG SCALER_DEADTIME
-   Size of returned values in data portion: */
+         ULONG SCALER_DEADTIME
+    Size of returned values in data portion: */
 #define DSC_GET_SCALER_DEADTIME_LEN 4
 
 #endif

@@ -4,7 +4,7 @@
  * J. Jacobsen (jacobsen@npxdesigns.com)
  * Based on original code by mcp.
  *
- * $Date: 2004-06-15 20:56:46 $
+ * $Date: 2004-05-19 05:19:21 $
  *
  *
  */
@@ -16,10 +16,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.19.2.1 $
+ * $Revision: 1.27 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-06-15 20:56:46 $
+ * $Date: 2004-05-19 05:19:21 $
 */
 
 #include <unistd.h> /* Needed for read/write */
@@ -234,7 +234,7 @@ int main(void) {
     expControlInit();
     dataAccessInit();
 
-    // REV 4 !!! halStartReadTemp();
+    halStartReadTemp();
     USHORT temperature = 0; // Chilly
 
     for (;;) {
@@ -250,11 +250,11 @@ int main(void) {
 	   || dt > moni_hardware_interval) {
 
 	  /* Update temperature if it's done */
-	  // REV 4 !!! if(halReadTempDone()) {
-	  // REV 4 !!!   temperature = halFinishReadTemp();
-	  // REV 4 !!!   halStartReadTemp();
-	  // REV 4 !!! }
-	  temperature = halReadTemp();
+	  if(halReadTempDone()) {
+	    temperature = halFinishReadTemp();
+	    halStartReadTemp();
+	  }
+	  //temperature = halReadTemp();
 	  //temperature = 666;
 	  moniInsertHdwrStateMessage(tcur, temperature);
 

@@ -279,16 +279,16 @@ UBYTE *TimeMove(UBYTE *buffer, int useLatched) {
     //t.time = hal_FPGA_TEST_get_local_clock(); /* Old code didn't use latched ATWD time */
     if(useLatched) {
       if(FPGA_ATWD_select == 0) {
-        t.time = hal_FPGA_TEST_get_atwd0_clock();
+	t.time = hal_FPGA_TEST_get_atwd0_clock();
       } else {
-        t.time = hal_FPGA_TEST_get_atwd1_clock();
+	t.time = hal_FPGA_TEST_get_atwd1_clock();
       }
     } else {
       t.time = hal_FPGA_TEST_get_local_clock();
     }
 
     for(i = 0; i < 6; i++) {
-	*buffer++ = t.timeBytes[5-i];
+      *buffer++ = t.timeBytes[5-i];
     }
 
     return buffer;
@@ -395,19 +395,23 @@ void formatEngineeringEvent(UBYTE *event) {
     
     /* Form up the mask indicating which sort of event it was */
 
-
     /* set to match trigger mode values -DH */
- 
-    if(FPGA_trigger_mode == TEST_PATTERN_TRIG_MODE) {
-      *event++ = 0x0; 
-    } else if(FPGA_trigger_mode == CPU_TRIG_MODE) {
-      *event++ = 0x1; 
-    } else if (FPGA_trigger_mode == TEST_DISC_TRIG_MODE) {
-      *event++ = 0x2; /* we know this is SPE disc trigger so set the byte to 0x2 -DH */
-    } else {
-      *event++ = 0x80; /* default when trig mode unset or unrecognized - currently test pattern -DH */
-    }
 
+    switch(FPGA_trigger_mode) {
+    case TEST_PATTERN_TRIG_MODE:
+      *event++ = 0;
+      break;
+    case CPU_TRIG_MODE:
+      *event++ = 1;
+      break;
+    case TEST_DISC_TRIG_MODE:
+      *event++ = 2;
+      break;
+    default:
+      *event++ = 0x80;
+      break;
+    }
+ 
 //  spare byte
     *event++ = Spare;
 // TEST spare, easier to spot
@@ -415,6 +419,16 @@ void formatEngineeringEvent(UBYTE *event) {
 
 //  insert the time
     event = TimeMove(event, (FPGA_trigger_mode == TEST_DISC_TRIG_MODE ? 1 : 0));
+
+    /*
+    char buf[MBSIZ];
+    int ib;
+    for(ib=0; ib < 20; ib++) {
+      int ndiag = snprintf(buf, MBSIZ, "BUF byte %d is 0x%02x", ib, beginOfEvent[ib]);
+      unsigned long long tt = hal_FPGA_TEST_get_local_clock();
+      moniInsertDiagnosticMessage(buf, tt, ndiag);
+    }
+    */
 
 //  do something with flash data
     event = FADCMove(FlashADCData, event, (int)FlashADCLen);

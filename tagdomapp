@@ -66,7 +66,7 @@ exit if($resp !~ /^y/i);
 my $header = "public/domapp_common/version.h";
 die "Can't find current $header!  Old version of domapp?\n" unless -f $header;
 print "Updating $header...\n";
-print `cvs update $header`;
+print `cvs update -A $header`;
 
 print "Creating new $header...\n";
 open H, ">$header" || die "Can't open $header: $!\n";

@@ -23,6 +23,7 @@ Jan. 14 '04 Jacobsen -- add monitoring actions for state change operations
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
+#include "slowControl/domSControlRoutines.h"
 #include "slowControl/DSCmessageAPIstatus.h"
 #include "domapp_common/DOMstateInfo.h"
 
@@ -306,14 +307,15 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		/* lock, access and unlock */
-		halEnablePMT_HV();
+                halPowerUpBase();
+                halEnableBaseHV();
 		moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 	    case DSC_DISABLE_PMT_HV:
 		/* lock, access and unlock */
-		halDisablePMT_HV();
+		halPowerDownBase();
 		moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());		
 		/* format up success response */
 		Message_setDataLen(M,0);
@@ -452,11 +454,12 @@ void domSControl(MESSAGE_STRUCT *M) {
                 Message_setDataLen(M,0);
                 Message_setStatus(M,SUCCESS);
 		break;
-            case DSC_GET_SCALER_DEADTIME:
-                formatLong(deadTime,&data[0]);
-                Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
-                Message_setStatus(M,SUCCESS);
-                break;
+             case DSC_GET_SCALER_DEADTIME:
+                 formatLong(deadTime,&data[0]);
+                 Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
+                 Message_setStatus(M,SUCCESS);
+                 break;
+
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.21.4.1 2004-07-21 17:58:38 arthur Exp $
+ * $Id: moniDataAccess.c,v 1.21.4.2 2004-09-28 21:39:42 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -354,8 +354,8 @@ void moniFillBogusHdwrStateMessage(struct moniHardware *mh) {
 
 
 /* Type MONI_TYPE_HDWR_STATE_MSG - log dom state message */
-void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature) {
-  unsigned long spe, mpe;
+void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature,
+                                long spe_sum, long mpe_sum) {
   struct moniRec mr;
   struct moniHardware mh;
   int test = FALSE;
@@ -392,10 +392,10 @@ void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature) {
     mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(halReadBaseDAC());
     mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadBaseADC());
     mh.DOM_MB_TEMPERATURE        = moniBEShort(temperature);
-    spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
-    mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
-    mh.SPE_RATE                  = moniBELong(spe);
-    mh.MPE_RATE                  = moniBELong(mpe);
+    //spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
+    //mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
+    mh.SPE_RATE                  = moniBELong(spe_sum);
+    mh.MPE_RATE                  = moniBELong(mpe_sum);
   }
   mr.dataLen = sizeof(mh);
   mr.fiducial.fstruct.moniEvtType = MONI_TYPE_HDWR_STATE_MSG;

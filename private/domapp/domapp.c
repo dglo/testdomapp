@@ -4,7 +4,7 @@
  * J. Jacobsen (jacobsen@npxdesigns.com)
  * Based on original code by mcp.
  *
- * $Date: 2004-07-21 17:57:43 $
+ * $Date: 2004-09-28 21:39:42 $
  *
  *
  */
@@ -16,10 +16,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.27.4.1 $
- * $Author: arthur $
+ * $Revision: 1.27.4.2 $
+ * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-07-21 17:57:43 $
+ * $Date: 2004-09-28 21:39:42 $
 */
 
 #include <unistd.h> /* Needed for read/write */
@@ -64,6 +64,13 @@ int recvMsg_arm_nonblock(void);
 /** fds index for stdin, stdout */
 #define STDIN 0
 #define STDOUT 1
+
+/** Code for scalar averaging */
+#define FPGA_CLOCK_FREQ    40000000 /* 40 MHz */
+#define FPGA_CLOCKS_PER_MS (FPGA_CLOCK_FREQ/1000)
+#define SCALAR_PERIOD_MS   102
+#define SCALAR_PERIOD_CLKS (SCALAR_PERIOD_MS*FPGA_CLOCKS_PER_MS)
+#define SCALAR_PERIODS_PER_AVERAGE 9
 
 /** Where we get messages from : either STDIN or an open device file descriptor */
 int dom_input_file;      
@@ -158,6 +165,7 @@ int main(void) {
     int status;
     unsigned long long t_hw_last, t_cf_last, tcur;
     unsigned long long moni_hardware_interval, moni_config_interval;
+    unsigned long long t_scalar_last;
 
     //    struct pollfd fds[1];
 
@@ -213,7 +221,7 @@ int main(void) {
     dom_input_file  = STDIN;
     dom_output_file = STDOUT;
 
-    t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock();
+    t_scalar_last = t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock();
 
     /* Set input to non-blocking mode -- NOT IMPLEMENTED ON EPXA10 */
     //fcntl_flags = fcntl(dom_input_file, F_GETFL, 0);
@@ -240,6 +248,9 @@ int main(void) {
     halStartReadTemp();
     USHORT temperature = 0; // Chilly
 
+    long spe_sum = 0, mpe_sum = 0;
+    int numscalars = 0, quorum = 0;
+
     for (;;) {
       
       /* Insert periodic monitoring records */
@@ -247,6 +258,22 @@ int main(void) {
       moni_hardware_interval = moniGetHdwrIval();
       moni_config_interval   = moniGetConfIval();
       long long dt  = tcur-t_hw_last;
+      long long dtsc = tcur-t_scalar_last;
+
+
+      if(!quorum && dtsc > SCALAR_PERIOD_CLKS) { /* Handle scalar averaging */
+	t_scalar_last = tcur;
+	int spe = hal_FPGA_TEST_get_spe_rate();
+	int mpe = hal_FPGA_TEST_get_mpe_rate();
+	if(spe >= 0 && mpe >= 0) {
+	  numscalars++;
+	  spe_sum += spe;
+	  mpe_sum += mpe;
+	  if(numscalars >= SCALAR_PERIODS_PER_AVERAGE) {
+	    quorum = 1;
+	  }
+	}
+      }
 
       if(moni_hardware_interval > 0) {
 	if(dt < 0  /* overflow case (should be RARE)  */
@@ -259,7 +286,8 @@ int main(void) {
 	  }
 	  //temperature = halReadTemp();
 	  //temperature = 666;
-	  moniInsertHdwrStateMessage(tcur, temperature);
+	  moniInsertHdwrStateMessage(tcur, temperature, quorum?spe_sum:0, quorum?mpe_sum:0);
+	  quorum = numscalars = spe_sum = mpe_sum = 0;
 
 #ifdef DEBUGMONI
           mprintf("MONI "

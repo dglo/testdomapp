@@ -34,8 +34,8 @@ Modifications by John Jacobsen 2004 to implement configurable engineering events
 #define ENG_EVENT_FID 0x1;
 
 /* defines for ATWD readout */
-#define ATWD_TIMEOUT_COUNT 20
-#define ATWD_TIMEOUT_USEC 1000
+#define ATWD_TIMEOUT_COUNT 4000
+#define ATWD_TIMEOUT_USEC 5
 
 /* global storage and functions */
 extern UBYTE FPGA_trigger_mode;
@@ -287,8 +287,21 @@ UBYTE *TimeMove(UBYTE *buffer, int useLatched) {
       t.time = hal_FPGA_TEST_get_local_clock();
     }
 
+    /* FIXME: maybe take me out later, this is for debugging timestamps
+#   define MBSIZ 512
+    char buf[MBSIZ];
+    // For some reason snprintf %llx doesn't work 
+    int ndiag = snprintf(buf, MBSIZ, "Engr time = 0x%lx%lx", 
+			 (unsigned long) (t.time>>32 & 0xFFFFFFFF), 
+			 (unsigned long) (t.time & 0xFFFFFFFF));
+    moniInsertDiagnosticMessage(buf, t.time, ndiag);
+    */
+    
     for(i = 0; i < 6; i++) {
-	*buffer++ = t.timeBytes[5-i];
+      //ndiag = snprintf(buf, MBSIZ, "Time byte %d is 0x%02x", i, t.timeBytes[5-i]);
+      //moniInsertDiagnosticMessage(buf, t.time, ndiag);
+
+      *buffer++ = t.timeBytes[5-i];
     }
 
     return buffer;
@@ -414,9 +427,21 @@ void formatEngineeringEvent(UBYTE *event) {
  
 //  spare byte
     *event++ = Spare;
-    
+// TEST spare, easier to spot
+//    *event++ = 66;
+
 //  insert the time
     event = TimeMove(event, (FPGA_trigger_mode == TEST_DISC_TRIG_MODE ? 1 : 0));
+
+    /*
+    char buf[MBSIZ];
+    int ib;
+    for(ib=0; ib < 20; ib++) {
+      int ndiag = snprintf(buf, MBSIZ, "BUF byte %d is 0x%02x", ib, beginOfEvent[ib]);
+      unsigned long long tt = hal_FPGA_TEST_get_local_clock();
+      moniInsertDiagnosticMessage(buf, tt, ndiag);
+    }
+    */
 
 //  do something with flash data
     event = FADCMove(FlashADCData, event, (int)FlashADCLen);

@@ -3,7 +3,7 @@
  * @author Chuck McParland, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2004-03-02 17:38:10 $
+ * $Date: 2004-04-30 01:10:35 $
  *
  * @section ration Rationale
  *
@@ -34,50 +34,33 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.20 $
+ * $Revision: 1.21 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-03-02 17:38:10 $
+ * $Date: 2004-04-30 01:10:35 $
 */
 
-#if defined (CYGWIN) || defined (LINUX)
-/** system include files */
-#include <sys/socket.h>
-#include <stdio.h>
-#include <time.h>   /* for time() */
-#include <signal.h> /* For signal() */
-
-/* JEJ Included these files to pick up O_RDWR flags for open */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-/* JEJ */
-#include <errno.h> /** For errno, on open */
-#else
 #include <unistd.h> /* Needed for read/write */
-#endif
+#include <stdio.h> /* snprintf */
 
-/** project include files */
-#if defined (CYGWIN) || defined (LINUX)
-#include "hal/DOM_MB_hal_simul.h"
-#else 
-#endif
-
-
-
-/* DOMtypes.h needed to build under linux */
-#include "domapp_common/DOMtypes.h"
-
-#include "domapp_common/packetFormatInfo.h"
-#include "domapp_common/messageAPIstatus.h"
-#include "domapp_common/commonMessageAPIstatus.h"
+// DOM-related includes
+#include "hal/DOM_MB_types.h"
+#include "hal/DOM_MB_hal.h"
+#include "domapp_common/DOMstateInfo.h"
 #include "message/message.h"
 #include "message/messageBuffers.h"
-#include "message/genericMsgSendRecv.h"	
-#include "expControl/expControl.h"
-//#include "dataAccess/dataAccess.h"
-#include "slowControl/domSControl.h"
+#include "dataAccess/DOMdataCompression.h"
 #include "dataAccess/moniDataAccess.h"
+#include "expControl/expControl.h"
+#include "expControl/EXPmessageAPIstatus.h"
+#include "slowControl/DSCmessageAPIstatus.h"
+#include "dataAccess/moniDataAccess.h"
+#include "msgHandler/msgHandler.h"
+#include "slowControl/domSControl.h"
+#include "dataAccess/dataAccess.h"
+#include "message/genericMsgSendRecv.h"
+
+int recvMsg_arm_nonblock(void);
 
 /** Monitoring delay --- now set by dataAccess message */
 //#define DOMAPP_MONI_DELAY 0xA000000
@@ -272,9 +255,18 @@ int main(void) {
       if(moni_hardware_interval > 0) {
 	if(t_hw_last > tcur /* overflow case (should be RARE)  */
 	   || (tcur-t_hw_last) > moni_hardware_interval) {
-	  //moniInsertDiagnosticMessage("MONI HARDWARE INTERVAL", tcur, 22);
 	  moniInsertHdwrStateMessage(tcur);
+
+	  /* FIXME: maybe take me out later, this is for debugging timestamps
 	  t_hw_last = tcur;
+#         define BSIZ 512
+	  char buf[BSIZ];
+	  int ndiag = snprintf(buf, BSIZ, "Moni time = 0x%lx%lx",
+			       (unsigned long) (tcur>>32 & 0xFFFFFFFF), 
+			       (unsigned long) (tcur & 0xFFFFFFFF));
+			       
+	  moniInsertDiagnosticMessage(buf, tcur, ndiag);
+	  */
 	}
       }
 
@@ -382,16 +374,10 @@ int recvMsg_arm_nonblock(void) {
  * @see sendMsg() complimentary function.
 */
 int recvMsg(void) {
-  /** length of entire message to be received */
-  long msgLength;
-  /** number of bytes to be received for a given msg part */
-  int targetLength;
   /** recv sts */
   int sts;
   /* pointer to message data buffer */
   UBYTE *dataBuffer_p;
-  /* misc buffer pointer */
-  UBYTE *buffer_p;
   
   //printf("in rcvMsg: ready to allocate buffer\r\n");
   /* receive the message header */

@@ -3,7 +3,7 @@
  * Part of dataAccess thread
  * John Jacobsen, JJ IT Svcs, for LBNL
  * May, 2003
- * $Id: moniDataAccess.h,v 1.13 2004-03-02 17:38:10 jacobsen Exp $
+ * $Id: moniDataAccess.h,v 1.14 2004-04-30 01:08:24 jacobsen Exp $
  */
 
 #ifndef _MONI_DATA_ACCESS_
@@ -120,6 +120,10 @@ typedef enum {
 
 
 /* Prototypes */
+
+void moniRunTests(void);
+ULONG moniGetHdwrIval(void);
+ULONG moniGetConfIval(void);
 
 void moniInit(
 	      UBYTE *bufBaseAddr, 

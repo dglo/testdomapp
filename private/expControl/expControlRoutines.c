@@ -27,26 +27,6 @@ extern char *DOM_errorString;
 // local functions, data
 
 
-BOOLEAN beginRun() {
-    if(DOM_state!=DOM_IDLE) {
-	return FALSE;
-    }
-    else {
-	DOM_state=DOM_RUN_IN_PROGRESS;
-	return TRUE;
-    }
-}
-
-BOOLEAN endRun() {
-    if(DOM_state!=DOM_RUN_IN_PROGRESS) {
-	return FALSE;
-    }
-    else {
-	DOM_state=DOM_IDLE;
-	return TRUE;
-    }
-}
-
 BOOLEAN forceRunReset() {
     DOM_state=DOM_IDLE;
     return TRUE;

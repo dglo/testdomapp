@@ -1,6 +1,12 @@
 testdomapp Release Notes -- jacobsen@npxdesigns.com
 
 =========================================================
+testdomapp pole-fb-01
+
+- Flasher board support, trig type 3, bit 4 set in engineering
+  event
+
+=========================================================
 testdomapp pole-fb-00
 
 - Flasher board support, trig type 2

@@ -6,7 +6,7 @@
 #define TRIG_UNKNOWN_MODE TBIT(7)
 #define TRIG_LC_UPPER_ENA TBIT(6)
 #define TRIG_LC_LOWER_ENA TBIT(5)
-
+#define TRIG_FB_RUN       TBIT(4)
 BOOLEAN beginRun(void); 
 
 BOOLEAN endRun(void);

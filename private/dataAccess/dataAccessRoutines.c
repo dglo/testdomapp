@@ -595,11 +595,15 @@ void formatEngineeringEvent(UBYTE *event, unsigned long long time) {
     trigmask = 1; break;
   case TEST_DISC_TRIG_MODE:
     trigmask = 2; break;
+  case FB_TRIG_MODE: 
+    trigmask = 3; break;
   default:
     trigmask = 0; trigmask |= TRIG_UNKNOWN_MODE; break;
   }
   if(LCmode == 1 || LCmode == 2) trigmask |= TRIG_LC_UPPER_ENA;
   if(LCmode == 1 || LCmode == 3) trigmask |= TRIG_LC_LOWER_ENA;
+  if(FBRunIsInProgress()) trigmask |= TRIG_FB_RUN;
+
   *event++ = trigmask;
 
   //  spare byte
@@ -881,8 +885,7 @@ void bufferLBMTriggers(void) {
   if (FBRunIsInProgress()) {
       trigger_mask =
           (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
-  }
-  else {
+  } else {
       trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
           (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
   }
@@ -891,6 +894,7 @@ void bufferLBMTriggers(void) {
   switch (FPGA_trigger_mode) {
   case CPU_TRIG_MODE:
   case TEST_DISC_TRIG_MODE:
+  case FB_TRIG_MODE:
     /* Bail if nothing available */
     //tsr0 = (FPGA(TEST_SIGNAL_RESPONSE));
     if(!hal_FPGA_TEST_readout_done(trigger_mask)) break;

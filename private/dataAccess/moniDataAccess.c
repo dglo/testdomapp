@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.21.4.2.2.1 2004-11-20 01:19:33 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.21.4.2.2.2 2004-11-20 01:20:57 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 

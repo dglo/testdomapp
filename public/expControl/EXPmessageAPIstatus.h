@@ -22,6 +22,11 @@
 #define EXPCONTROL_FORCE_RUN_RESET 14
 #define	EXPCONTROL_GET_DOM_STATE 15
 
+/* New messages: see domapp api document: */
+#define EXPCONTROL_DO_PEDESTAL_COLLECTION 16 /* in: UL UL UL */
+#define EXPCONTROL_GET_NUM_PEDESTALS 19 /* out: UL UL UL */
+#define EXPCONTROL_GET_PEDESTAL_AVERAGES 20 /* out: UH:128*9 */
+
 /* These are Experiment Control specific return message
    formats and values.  In most cases, they are formatted
    as byte values to eliminate any questions of
@@ -69,6 +74,7 @@
    Last Error ID for failed invocation: */
 #define	EXP_Cannot_Begin_Run 5
 
+
 /* Response to: 
 	subType: EXPCONTROL_END_RUN
    Passed values:
@@ -113,4 +119,10 @@
 	length of errorString + 8
    Legal values: */
 
+
+/* More error conditions */
+
+#define EXP_Pedestal_Run_Failed 8
+#define EXP_Too_Many_Peds       9
+#define EXP_Pedestals_Not_Avail 10
 #endif

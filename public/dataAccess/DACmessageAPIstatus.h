@@ -29,12 +29,21 @@
 					 hardware and configuration snapshot
 					 records */
 #define DATA_ACC_SET_ENG_FMT       14
+#define DATA_ACC_TEST_SW_COMP      15 /* Inject software compression test pattern data */
+#define DATA_ACC_SET_BASELINE_THRESHOLD 16
+#define DATA_ACC_GET_BASELINE_THRESHOLD 17
+#define DATA_ACC_SET_SW_DATA_COMPRESSION 18
+#define DATA_ACC_GET_SW_DATA_COMPRESSION 19
+#define DATA_ACC_SET_SW_DATA_COMPRESSION_FORMAT 20
+#define DATA_ACC_GET_SW_DATA_COMPRESSION_FORMAT 21
 
 // define service specific error values
-#define DAC_Data_Overrun  4
-#define DAC_Moni_Not_Init 5
-#define DAC_Moni_Overrun  6
-#define DAC_Moni_Badstat  7
+#define DAC_Data_Overrun     4
+#define DAC_Moni_Not_Init    5
+#define DAC_Moni_Overrun     6
+#define DAC_Moni_Badstat     7
+#define DAC_Bad_Compr_Format 8
+#define DAC_Bad_Argument     9
 
 /* These are Data Access specific return message
    formats and values.  In most cases, they are formatted

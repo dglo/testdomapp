@@ -3,7 +3,7 @@
  * Part of dataAccess thread
  * John Jacobsen, JJ IT Svcs, for LBNL
  * May, 2003
- * $Id: moniDataAccess.h,v 1.14 2004-04-30 01:08:24 jacobsen Exp $
+ * $Id: moniDataAccess.h,v 1.17 2004-05-12 19:06:51 jacobsen Exp $
  */
 
 #ifndef _MONI_DATA_ACCESS_
@@ -19,6 +19,14 @@
 #define MONI_TYPE_CONF_STATE_CHG_MSG 0xCA
 #define MONI_TYPE_LOG_MSG            0xCB
 #define MONI_TYPE_GENERIC_MSG        0xCC
+
+
+/* Should be defined by the HAL, but if not, do it here: */
+#ifndef FPGA_HAL_TICKS_PER_SEC 
+#define FPGA_HAL_TICKS_PER_SEC 40000000
+#endif
+
+#define TEMP_REFRESH_IVAL (10 * FPGA_HAL_TICKS_PER_SEC)
 
 struct moniRec {
   USHORT dataLen;    /* Number of bytes in data portion */
@@ -122,8 +130,8 @@ typedef enum {
 /* Prototypes */
 
 void moniRunTests(void);
-ULONG moniGetHdwrIval(void);
-ULONG moniGetConfIval(void);
+unsigned long long moniGetHdwrIval(void);
+unsigned long long moniGetConfIval(void);
 
 void moniInit(
 	      UBYTE *bufBaseAddr, 
@@ -138,11 +146,11 @@ MONI_STATUS moniFetchRec(struct moniRec *m);  /* Consumer function
 void moniAcceptRec(void);	              /* accept previously fetched record */
 
 
-void moniSetIvals(ULONG mhi, ULONG mci);
+void moniSetIvals(unsigned long long mhi, unsigned long long mci);
 
 /* The following functions use moniInsertRec to insert data */
 
-void moniInsertHdwrStateMessage(unsigned long long time);
+void moniInsertHdwrStateMessage(unsigned long long time, int updateTemp);
 /* Timestamped rec. of all DACs, ADCs, etc. hardware info on board */
 
 void moniInsertConfigStateMessage(unsigned long long time);
@@ -150,6 +158,8 @@ void moniInsertConfigStateMessage(unsigned long long time);
 
 void moniInsertDiagnosticMessage(char *msg, unsigned long long time, int len);
 /* Text string */
+
+void mprintf(char *arg, ...);
 
 void moniInsertGenericMessage(UBYTE *msg, unsigned long long time, int len);
 /* Free format message type */

@@ -3,7 +3,7 @@
  * @author Chuck McParland, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2004-04-30 17:40:03 $
+ * $Date: 2004-05-12 19:06:52 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.22 $
+ * $Revision: 1.25 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-04-30 17:40:03 $
+ * $Date: 2004-05-12 19:06:52 $
 */
 
 #include <unistd.h> /* Needed for read/write */
@@ -174,7 +174,8 @@ int main(void) {
 #endif
     int status;
     unsigned long long t_hw_last, t_cf_last, tcur;
-    ULONG moni_hardware_interval, moni_config_interval;
+    unsigned long long moni_hardware_interval, moni_config_interval;
+
     //    struct pollfd fds[1];
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -229,7 +230,8 @@ int main(void) {
     dom_input_file  = STDIN;
     dom_output_file = STDOUT;
 
-    t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock(); //moniGetTimeAsUnsigned();
+    t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock();
+    unsigned long long lastTempTime = 0;
 
     /* Set input to non-blocking mode -- NOT IMPLEMENTED ON EPXA10 */
     //fcntl_flags = fcntl(dom_input_file, F_GETFL, 0);
@@ -255,38 +257,52 @@ int main(void) {
     for (;;) {
       
       /* Insert periodic monitoring records */
-      tcur = hal_FPGA_TEST_get_local_clock();
-
-/*       if( */
-/* 	 ((tcur & 0xFF00000000) == 0xFF00000000) && ((tcur & 0xFF0000000000) == 0xFF0000000000)) { */
-/* 	moniInsertDiagnosticMessage("GOT ODD THING", tcur, 12); */
-/*       } */
-      
+      tcur = hal_FPGA_TEST_get_local_clock();      
       moni_hardware_interval = moniGetHdwrIval();
       moni_config_interval   = moniGetConfIval();
-      
-      if(moni_hardware_interval > 0) {
-	if(t_hw_last > tcur /* overflow case (should be RARE)  */
-	   || (tcur-t_hw_last) > moni_hardware_interval) {
-	  moniInsertHdwrStateMessage(tcur);
+      long long dt  = tcur-t_hw_last;
 
-	  /* FIXME: maybe take me out later, this is for debugging timestamps
+      if(moni_hardware_interval > 0) {
+	if(dt < 0 /* overflow case (should be RARE)  */
+	   || dt > moni_hardware_interval) {
+
+	  /* Update temperature only once every TEMP_REFRESH_IVAL clock ticks,
+	     cause halReadTemp() is a dog. */
+	  int doTemp = 0;
+	  if(lastTempTime == 0 || (tcur - lastTempTime) > TEMP_REFRESH_IVAL) {
+	    doTemp = 1;
+	    lastTempTime = tcur;
+	  }
+
+	  moniInsertHdwrStateMessage(tcur, doTemp);
+
+#ifdef DEBUGMONI
+          mprintf("MONI "
+		  "tcur=0x%08lx%08lx "
+		  "hwlast=0x%08lx%08lx "
+		  "cflast=0x%08lx%08lx "
+		  "hwival=0x%lx%lx "
+		  "cfival=0x%lx%lx "
+		  "dt=%ld ", 
+		  (unsigned long) (tcur>>32 & 0xFFFFFFFF),
+		  (unsigned long) (tcur & 0xFFFFFFFF),
+		  (unsigned long) (t_hw_last>>32 & 0xFFFFFFFF),
+		  (unsigned long) (t_hw_last & 0xFFFFFFFF),
+		  (unsigned long) (t_cf_last>>32 & 0xFFFFFFFF),
+		  (unsigned long) (t_cf_last & 0xFFFFFFFF),
+		  (unsigned long) (moni_hardware_interval>>32 & 0xFFFFFFFF),
+		  (unsigned long) (moni_hardware_interval & 0xFFFFFFFF),
+		  (unsigned long) (moni_config_interval>>32 & 0xFFFFFFFF),
+		  (unsigned long) (moni_config_interval & 0xFFFFFFFF),
+		  (unsigned long) dt);
+#endif
 	  t_hw_last = tcur;
-#         define BSIZ 512
-	  char buf[BSIZ];
-	  int ndiag = snprintf(buf, BSIZ, "Moni time = 0x%lx%lx",
-			       (unsigned long) (tcur>>32 & 0xFFFFFFFF), 
-			       (unsigned long) (tcur & 0xFFFFFFFF));
-			       
-	  moniInsertDiagnosticMessage(buf, tcur, ndiag);
-	  */
 	}
       }
 
       if(moni_config_interval > 0) {
         if(t_cf_last > tcur /* overflow case (should be RARE)  */
            || (tcur-t_cf_last) > moni_config_interval) {
-          //moniInsertDiagnosticMessage("MONI CONFIG INTERVAL", tcur, 20);
 	  moniInsertConfigStateMessage(tcur);
 	  t_cf_last = tcur;
 	}

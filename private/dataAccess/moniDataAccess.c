@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.15 2004-03-16 17:39:03 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.18 2004-05-12 19:06:51 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -12,6 +12,7 @@
 #include "hal/DOM_MB_hal.h"
 #include "message/message.h"
 #include "domapp_common/messageAPIstatus.h"
+#include "domapp_common/commonServices.h"
 #include "slowControl/DSCmessageAPIstatus.h"
 #include "dataAccess/moniDataAccess.h"
 #include "dataAccess/dataAccess.h"
@@ -20,6 +21,7 @@
 #include "msgHandler/msgHandler.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #ifndef FALSE
 #define FALSE 0
@@ -36,7 +38,7 @@ static int   moniCounterWraps;
 static int   moniOverruns;
 static BOOLEAN moniProvisionalRecFetch = FALSE;
 static int   moniIsInTrouble = 0;
-static ULONG moniHdwrIval=0, moniConfIval=0;
+static unsigned long long moniHdwrIval=0, moniConfIval=0;
 
 static inline void moniLockWriteIndex(void);
 static inline void moniUnlockWriteIndex(void);
@@ -59,10 +61,10 @@ void moniIncWriteIndex(void) {
   }
 }
 
-ULONG moniGetHdwrIval(void) { return moniHdwrIval; }
-ULONG moniGetConfIval(void) { return moniConfIval; }
+unsigned long long moniGetHdwrIval(void) { return moniHdwrIval; }
+unsigned long long moniGetConfIval(void) { return moniConfIval; }
 
-void moniSetIvals(ULONG mhi, ULONG mci) {
+void moniSetIvals(unsigned long long mhi, unsigned long long mci) {
   moniHdwrIval = mhi;
   moniConfIval = mci;
 }
@@ -205,6 +207,17 @@ void moniInsertDiagnosticMessage(char *msg, unsigned long long time, int len) {
   moniInsertRec(&mr);
 }
 
+void mprintf(char *fmt, ...) {
+#define BUFLEN 512
+  char buf[BUFLEN];
+  va_list ap;
+  unsigned long long time = hal_FPGA_TEST_get_local_clock();
+  va_start(ap, fmt);
+  int n = vsnprintf(buf, BUFLEN, fmt, ap);
+  va_end(ap);
+  moniInsertDiagnosticMessage(buf, time, n);
+}
+
 static inline USHORT moniBEShort(unsigned short x) {
   return (   ((x >> 8) & 0xFF) | ((x & 0xFF) << 8) );
 }
@@ -344,11 +357,12 @@ void moniFillBogusHdwrStateMessage(struct moniHardware *mh) {
 
 
 /* Type MONI_TYPE_HDWR_STATE_MSG - log dom state message */
-void moniInsertHdwrStateMessage(unsigned long long time) {
+void moniInsertHdwrStateMessage(unsigned long long time, int updateTemp) {
   unsigned long spe, mpe;
   struct moniRec mr;
   struct moniHardware mh;
   int test = FALSE;
+  static unsigned short last_dom_mb_temp = 0;
 
   if(test) {
     moniFillBogusHdwrStateMessage(&mh);
@@ -385,7 +399,12 @@ void moniInsertHdwrStateMessage(unsigned long long time) {
     
     mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(0);
     mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadBaseADC());
-    mh.DOM_MB_TEMPERATURE        = moniBEShort(halReadTemp());
+    if(updateTemp) { /* Update temp less frequently 'cause it's a time hog */
+      mh.DOM_MB_TEMPERATURE      = moniBEShort(halReadTemp());
+      last_dom_mb_temp = mh.DOM_MB_TEMPERATURE;
+    } else {
+      mh.DOM_MB_TEMPERATURE      = last_dom_mb_temp;
+    }
     spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
     mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
     mh.SPE_RATE                  = moniBELong(spe);

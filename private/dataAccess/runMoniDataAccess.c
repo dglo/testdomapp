@@ -34,7 +34,8 @@ int main(int argc, char *argv[]) {
 
   /* try inserting a message */
   for(irec=0; irec < 1023; irec++) {
-    time=hal_FPGA_getClock();
+    //time=hal_FPGA_getClock();
+    time = hal_FPGA_TEST_get_local_clock();
     moniInsertDiagnosticMessage(msg,&time,strlen(msg));
   }
 
@@ -82,7 +83,8 @@ int main(int argc, char *argv[]) {
   printf(PROG "Overflowing buffer just for fun, then reading back.\n");
   /* blow buffer, just for fun */
   for(irec=0; irec < 1028; irec++) {
-    time=hal_FPGA_getClock();
+    //time=hal_FPGA_getClock();
+    time = hal_FPGA_TEST_get_local_clock();
     moniInsertDiagnosticMessage(msg,&time,strlen(msg));
   }
 
@@ -98,7 +100,8 @@ int main(int argc, char *argv[]) {
   }
   
   printf(PROG "Trying one more insert and two reads.\n");
-  time=hal_FPGA_getClock();
+  //time=hal_FPGA_getClock();
+  time = hal_FPGA_TEST_get_local_clock();
   moniInsertDiagnosticMessage(msg,&time,strlen(msg));
   ms = moniFetchRec(&myMoniRec);
   moniAcceptRec();

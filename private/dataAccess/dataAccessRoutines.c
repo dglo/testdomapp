@@ -287,20 +287,7 @@ UBYTE *TimeMove(UBYTE *buffer, int useLatched) {
       t.time = hal_FPGA_TEST_get_local_clock();
     }
 
-    /* FIXME: maybe take me out later, this is for debugging timestamps
-#   define MBSIZ 512
-    char buf[MBSIZ];
-    // For some reason snprintf %llx doesn't work 
-    int ndiag = snprintf(buf, MBSIZ, "Engr time = 0x%lx%lx", 
-			 (unsigned long) (t.time>>32 & 0xFFFFFFFF), 
-			 (unsigned long) (t.time & 0xFFFFFFFF));
-    moniInsertDiagnosticMessage(buf, t.time, ndiag);
-    */
-    
     for(i = 0; i < 6; i++) {
-      //ndiag = snprintf(buf, MBSIZ, "Time byte %d is 0x%02x", i, t.timeBytes[5-i]);
-      //moniInsertDiagnosticMessage(buf, t.time, ndiag);
-
       *buffer++ = t.timeBytes[5-i];
     }
 

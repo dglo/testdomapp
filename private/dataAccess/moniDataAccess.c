@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.10 2004-01-16 02:07:39 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.12 2004-01-22 18:13:33 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -258,6 +258,7 @@ void moniInsertConfigStateMessage(unsigned long long time) {
   struct moniRec mr;
   struct moniConfig mc;
   int test = FALSE;
+  unsigned long long boardID, HVID;
 
   if(test) {
     /* Fill record with bogus values for testing */
@@ -266,9 +267,16 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.config_event_version = 0;
     mc.spare0               = 0;
     mc.hw_config_len        = moniBEShort(18);
-    memcpy(mc.dom_mb_id,halGetBoardID(),6); 
+
+    //memcpy(mc.dom_mb_id,halGetBoardID(),6); 
+    boardID = halGetBoardIDRaw();
+    memcpy(mc.dom_mb_id, (UBYTE *) &boardID, 6);
+
     mc.spare1               = moniBEShort(0); 
-    memcpy(mc.hw_base_id,"UNKNOWN!",8);
+
+    //memcpy(mc.hw_base_id,"UNKNOWN!",8);
+    HVID = halHVSerialRaw();
+    memcpy(mc.hw_base_id, (UBYTE *) &HVID, 8);
     
  /* mc.fpga_build_num       = hal_FPGA_query_build(); <-- CRASHES REV 2 BOARDS!! */
     mc.fpga_build_num       = moniBEShort(0);
@@ -287,7 +295,7 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.atwd_readout_info    = moniBELong(0);
   }
 
- skip:
+  // skip:
   mr.dataLen = sizeof(mc);
   mr.fiducial.fstruct.moniEvtType = MONI_TYPE_CONF_STATE_MSG;
   mr.time = time;
@@ -451,7 +459,8 @@ void moniInsertDisablePMT_HV_Message(unsigned long long time) {
 
 unsigned long long moniGetTimeAsUnsigned(void) { 
   /* Fix signed-like peculiarity in HAL */
-  return hal_FPGA_TEST_get_local_clock() & 0xFFFFFFFF;
+  //return hal_FPGA_TEST_get_local_clock() & 0xFFFFFFFF;
+  return hal_FPGA_TEST_get_local_clock();
 }
 
 void moniPuts(char *s) {
@@ -613,7 +622,7 @@ void moniRunTests() {
     moniAcceptRec();
   }
 
- success:
+  // success:
   /* Indicate success */
   moniZeroIndices();
   moniInsertDiagnosticMessage("MONI SELF TEST OK", time, 17);

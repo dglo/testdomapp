@@ -10,6 +10,7 @@ Last Modification:
 Jan. 14 '04 Jacobsen -- add monitoring actions for state change operations
 */
 
+#include <string.h>
 
 /* DOM-related includes */
 #include "hal/DOM_MB_types.h"
@@ -60,6 +61,9 @@ void domSControlInit(void) {
 }
 
 void domSControl(MESSAGE_STRUCT *M) {
+#define BSIZ 1024
+  //  char buf[BSIZ]; int n;
+  //  unsigned long long time;
 
     UBYTE *data;
     UBYTE tmpByte;

@@ -5,7 +5,7 @@ Start Date: May 4, 1999
 Description:
 	Helper routines for DOM Experiment Control 
 	service thread.
-Last Modification:
+Modifications by John Jacobsen 2004 to implement configurable engineering events
 */
 #include <stddef.h>
 
@@ -13,12 +13,16 @@ Last Modification:
 #include <stdio.h>
 #endif
 
+#include <string.h>
+#include <stdio.h>
+
 // DOM-related includes
 #include "hal/DOM_MB_types.h"
 #include "hal/DOM_MB_hal.h"
 #include "domapp_common/DOMstateInfo.h"
 #include "message/message.h"
 #include "dataAccess/DOMdataCompression.h"
+#include "dataAccess/moniDataAccess.h"
 #include "expControl/expControl.h"
 #include "expControl/EXPmessageAPIstatus.h"
 #include "slowControl/DSCmessageAPIstatus.h"
@@ -56,7 +60,6 @@ UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *FADCMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *TimeMove(UBYTE *buffer);
-void initFormatEngineeringEvent(void);
 void formatEngineeringEvent(UBYTE *buffer);
 void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
@@ -64,35 +67,43 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
 BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
-UBYTE ATWDCh0Mask;
-UBYTE ATWDCh1Mask;
-UBYTE ATWDCh2Mask;
-UBYTE ATWDCh3Mask;
 
-int ATWDCh0Len;
-int ATWDCh1Len;
-int ATWDCh2Len;
-int ATWDCh3Len;
+/** Set by initFormatEngineeringEvent: */
+/* UBYTE ATWDCh0Mask; */
+/* UBYTE ATWDCh1Mask; */
+/* UBYTE ATWDCh2Mask; */
+/* UBYTE ATWDCh3Mask; */
+UBYTE ATWDChMask[4];
 
-BOOLEAN ATWDCh0Byte;
-BOOLEAN ATWDCh1Byte;
-BOOLEAN ATWDCh2Byte;
-BOOLEAN ATWDCh3Byte;
+/* int ATWDCh0Len; */
+/* int ATWDCh1Len; */
+/* int ATWDCh2Len; */
+/* int ATWDCh3Len; */
+int ATWDChLen[4];
 
-USHORT *ATWDCh0Data;
-USHORT *ATWDCh1Data;
-USHORT *ATWDCh2Data;
-USHORT *ATWDCh3Data;
+/* BOOLEAN ATWDCh0Byte; */
+/* BOOLEAN ATWDCh1Byte; */
+/* BOOLEAN ATWDCh2Byte; */
+/* BOOLEAN ATWDCh3Byte; */
+BOOLEAN ATWDChByte[4];
+
+/* USHORT *ATWDCh0Data; */
+/* USHORT *ATWDCh1Data; */
+/* USHORT *ATWDCh2Data; */
+/* USHORT *ATWDCh3Data; */
+USHORT *ATWDChData[4];
+
 USHORT *FlashADCData;
 
 UBYTE FlashADCLen;
 UBYTE MiscBits = 0;
 UBYTE Spare = 0;
 
-USHORT Channel0Data[128];
-USHORT Channel1Data[128];
-USHORT Channel2Data[128];
-USHORT Channel3Data[128];
+#define ATWDCHSIZ 128
+USHORT Channel0Data[ATWDCHSIZ];
+USHORT Channel1Data[ATWDCHSIZ];
+USHORT Channel2Data[ATWDCHSIZ];
+USHORT Channel3Data[ATWDCHSIZ];
 USHORT FADCData[256];
 
 BOOLEAN beginRun() {
@@ -129,7 +140,8 @@ BOOLEAN checkDataAvailable() {
 }
 
 int fillMsgWithData(UBYTE *msgBuffer) {
-    ULONG FPGAeventIndex;
+
+  //ULONG FPGAeventIndex;
     BOOLEAN done;
     UBYTE *dataBufferPtr = msgBuffer;
     UBYTE *tmpBufferPtr;
@@ -188,7 +200,9 @@ int fillMsgWithData(UBYTE *msgBuffer) {
     return (int)(dataBufferPtr-msgBuffer);
 }
 
-UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count) {
+UBYTE *ATWDByteMoveFromBottom(USHORT *data, UBYTE *buffer, int count) {
+  /** Old version of ATWDByteMove, which assumes waveform is sorted from early
+      time to later */
     int i;
 
     for(i = 0; i < count; i++) {
@@ -197,7 +211,9 @@ UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count) {
     return buffer;
 }
 
-UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count) {
+UBYTE *ATWDShortMoveFromBottom(USHORT *data, UBYTE *buffer, int count) {
+  /** Old version of ATWDShortMove, which assumes waveform is sorted from early
+      time to later */
     int i;
     UBYTE *ptr = (UBYTE *)data;
 
@@ -208,6 +224,39 @@ UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count) {
     }
     return buffer;
 }
+
+
+UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count) {
+  /** Assumes earliest samples are last in the array */
+    int i;
+
+    data += ATWDCHSIZ-count;
+
+    if(count > ATWDCHSIZ || count <= 0) return buffer;
+    for(i = ATWDCHSIZ-count; i < ATWDCHSIZ; i++) {
+	*buffer++ = (UBYTE)(*data++ & 0xff);
+    }
+    return buffer;
+}
+
+
+UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count) {
+  /** Assumes earliest samples are last in the array */
+    int i;
+
+    UBYTE *ptr = (UBYTE *)data;
+
+    ptr += (ATWDCHSIZ-count)*2;
+
+    if(count > ATWDCHSIZ || count <= 0) return buffer; 
+    for(i = ATWDCHSIZ - count; i < ATWDCHSIZ; i++) {
+	*buffer++ = *(ptr+1);
+	*buffer++ = *ptr++;
+	ptr++;
+    }
+    return buffer;
+}
+
 
 UBYTE *FADCMove(USHORT *data, UBYTE *buffer, int count) {
     int i;
@@ -235,41 +284,84 @@ UBYTE *TimeMove(UBYTE *buffer) {
     return buffer;
 }
 
-void initFormatEngineeringEvent(void) {
-    ATWDCh0Mask = 0xf;
-    ATWDCh1Mask = 0xf;
-    ATWDCh2Mask = 0xf;
-    ATWDCh3Mask = 0xf;
+void initFormatEngineeringEvent(UBYTE fadc_samp_cnt_arg, 
+				UBYTE atwd01_mask_arg,
+				UBYTE atwd23_mask_arg) {
+  int ich;
+#define BSIZ 1024
+  //UBYTE buf[BSIZ]; int n;
+  //unsigned long long time;
+  /* Endianness set to agree w/ formatEngineeringEvent */
+  ATWDChMask[0] = atwd01_mask_arg & 0xF;
+  ATWDChMask[1] = (atwd01_mask_arg >> 4) & 0xF;
+  ATWDChMask[2] = atwd23_mask_arg & 0xF;
+  ATWDChMask[3] = (atwd23_mask_arg >> 4) & 0xF;
 
-    ATWDCh0Len = 128;
-    ATWDCh1Len = 128;
-    ATWDCh2Len = 128;
-    ATWDCh3Len = 128;
+  for(ich = 0; ich < 4; ich++) {
+    switch(ATWDChMask[ich]) {
+    case 1: //0b0001:
+      ATWDChLen[ich]  = 32;
+      ATWDChByte[ich] = TRUE;
+      break;
+    case 5: //0b0101:
+      ATWDChLen[ich]  = 64;
+      ATWDChByte[ich] = TRUE;
+      break;
+    case 9: //0b1001:
+      ATWDChLen[ich]  = 16;
+      ATWDChByte[ich] = TRUE;
+      break;
+    case 13: //0b1101:
+      ATWDChLen[ich]  = 128;
+      ATWDChByte[ich] = TRUE;
+      break;
+    case 3: //0b0011:
+      ATWDChLen[ich]  = 32;
+      ATWDChByte[ich] = FALSE;
+      break;
+    case 7: //0b0111:
+      ATWDChLen[ich]  = 64;
+      ATWDChByte[ich] = FALSE;
+      break;
+    case 11: //0b1011:
+      ATWDChLen[ich]  = 16;
+      ATWDChByte[ich] = FALSE;
+      break;
+    case 15: //0b1111:
+      ATWDChLen[ich]  = 128;
+      ATWDChByte[ich] = FALSE;
+      break;
+    default:
+      ATWDChLen[ich]  = 0;
+      ATWDChByte[ich] = TRUE;
+      break;
+    }
+  }
 
-    ATWDCh0Byte = FALSE;
-    ATWDCh1Byte = FALSE;
-    ATWDCh2Byte = FALSE;
-    ATWDCh3Byte = FALSE;
-
-    FlashADCLen = 255;
-    MiscBits = 0;
-    Spare = 0;
-
-    ATWDCh0Data = Channel0Data;
-    ATWDCh1Data = Channel1Data;
-    ATWDCh2Data = Channel2Data;
-    ATWDCh3Data = Channel3Data;
-    FlashADCData = FADCData;
+  FlashADCLen = fadc_samp_cnt_arg;
+  MiscBits = 0;
+  Spare = 0;
+  
+  ATWDChData[0] = Channel0Data;
+  ATWDChData[1] = Channel1Data;
+  ATWDChData[2] = Channel2Data;
+  ATWDChData[3] = Channel3Data;
+  FlashADCData = FADCData;
 }
 
 void formatEngineeringEvent(UBYTE *event) {
+#define BSIZ 1024
+  //char buf[BSIZ]; int n;
+  //unsigned long long time;
     UBYTE *beginOfEvent=event;
     USHORT length;
+    int ich;
 
-    int i;
-    UBYTE *ev=event;
+    //    int i;
+    //UBYTE *ev=event;
 
     //printf("formatEngineeringEvent: starting, event: %x\r\n", event);
+
 
 //  skip over event length
     event++;
@@ -284,20 +376,22 @@ void formatEngineeringEvent(UBYTE *event) {
     *event++ = FlashADCLen;
 
 //  ATWD masks
-    *event++ = (ATWDCh0Mask<<4) | ATWDCh1Mask;
-    *event++ = (ATWDCh2Mask<<4) | ATWDCh3Mask;
+    *event++ = (ATWDChMask[1]<<4) | ATWDChMask[0];
+    *event++ = (ATWDChMask[3]<<4) | ATWDChMask[2];
 
     //printf("formatEngineeringEvent: header done, event: %x\r\n", event);
 
 //  set trigger mode
+    
+    /* Form up the mask indicating which sort of event it was */
     if(FPGA_trigger_mode == CPU_TRIG_MODE) {
-  	*event++ = 0x0;
+      *event++ = 0x10;
     }
     else if (FPGA_trigger_mode == TEST_DISC_TRIG_MODE) {
-	*event++ = 0x10;
+      *event++ = 0x40; /* Special case -- don't know yet if SPE or MPE; this was 0x10. */
     }
     else {
-	*event++ = 0x80;
+      *event++ = 0x80; /* "TBD" in spec same as 0x40, above */
     }
 
 //  spare byte
@@ -306,36 +400,16 @@ void formatEngineeringEvent(UBYTE *event) {
 //  insert the time
     event = TimeMove(event);
 
-    //fprintf(stderr,"formatEngineeringEvent: trigger done, event: %x\r\n", event);
-
 //  do something with flash data
     event = FADCMove(FlashADCData, event, (int)FlashADCLen);
 
 //  now the ATWD data
-    if(ATWDCh0Byte) {
-	event = ATWDByteMove(ATWDCh0Data, event, ATWDCh0Len);
-    }
-    else {
-	event = ATWDShortMove(ATWDCh0Data, event, ATWDCh0Len);
-    }
-
-    if(ATWDCh1Byte) {
-        event = ATWDByteMove(ATWDCh1Data, event, ATWDCh1Len);
-    }
-    else {
-        event = ATWDShortMove(ATWDCh1Data, event, ATWDCh1Len);
-    }
-    if(ATWDCh2Byte) {
-        event = ATWDByteMove(ATWDCh2Data, event, ATWDCh2Len);
-    }
-    else {
-        event = ATWDShortMove(ATWDCh2Data, event, ATWDCh2Len);
-    }
-    if(ATWDCh3Byte) {
-        event = ATWDByteMove(ATWDCh3Data, event, ATWDCh3Len);
-    }
-    else {
-        event = ATWDShortMove(ATWDCh3Data, event, ATWDCh3Len);
+    for(ich = 0; ich < 4; ich++) {
+      if(ATWDChByte[ich]) {
+	event = ATWDByteMove(ATWDChData[ich], event, ATWDChLen[ich]);
+      } else {
+	event = ATWDShortMove(ATWDChData[ich], event, ATWDChLen[ich]);
+      }
     }
 
     //fprintf(stderr,"formatEngineeringEvent:  done, event: %x\r\n", event);
@@ -358,16 +432,15 @@ void formatEngineeringEvent(UBYTE *event) {
 void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
         USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC) {
     int i;
-
-    for(i = 0; i < 128; i++) {
-	Channel0Data[i] = i;
-  	Channel1Data[i] = 128 - i;
-	Channel2Data[i] = i;
-	Channel3Data[i] = 128 - i;
+    for(i = 0; i < ATWDCHSIZ; i++) {
+	Ch0Data[i] = i;
+  	Ch1Data[i] = ATWDCHSIZ - i;
+	Ch2Data[i] = i;
+	Ch3Data[i] = ATWDCHSIZ - i;
     }
 
     for(i = 0; i < 256; i++) {
-	FADCData[i] = i;
+	FADC[i] = i;
     }
 }
 
@@ -393,10 +466,10 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
      *
      * this is for testing only!
      */
-    if (Ch0Data!=NULL) memset(Ch0Data, 0xaa, 128*sizeof(short));
-    if (Ch1Data!=NULL) memset(Ch1Data, 0xbb, 128*sizeof(short));
-    if (Ch2Data!=NULL) memset(Ch2Data, 0xcc, 128*sizeof(short));
-    if (Ch3Data!=NULL) memset(Ch3Data, 0xdd, 128*sizeof(short));
+    if (Ch0Data!=NULL) memset(Ch0Data, 0xaa, ATWDCHSIZ*sizeof(short));
+    if (Ch1Data!=NULL) memset(Ch1Data, 0xbb, ATWDCHSIZ*sizeof(short));
+    if (Ch2Data!=NULL) memset(Ch2Data, 0xcc, ATWDCHSIZ*sizeof(short));
+    if (Ch3Data!=NULL) memset(Ch3Data, 0xdd, ATWDCHSIZ*sizeof(short));
     if (FADC!=NULL) memset(FADC, 0xee, FlashADCLen*sizeof(short));
 
     for(i = 0; i < ATWD_TIMEOUT_COUNT; i++) {
@@ -405,12 +478,12 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 
 	    if(FPGA_ATWD_select == 0) {
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
-		    Ch2Data, Ch3Data, 0, 0, 0, 0, 128, 
+		    Ch2Data, Ch3Data, 0, 0, 0, 0, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
 	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
-		    Ch2Data, Ch3Data, 128, 
+		    Ch2Data, Ch3Data, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    return TRUE;
@@ -441,12 +514,12 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	if(hal_FPGA_TEST_readout_done(trigger_mask)) {
 	    if(FPGA_ATWD_select == 0) {
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
-		    Ch2Data, Ch3Data, 0, 0, 0, 0, 128, 
+		    Ch2Data, Ch3Data, 0, 0, 0, 0, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
 	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
-		    Ch2Data, Ch3Data, 128, 
+		    Ch2Data, Ch3Data, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    return TRUE;

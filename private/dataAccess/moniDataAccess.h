@@ -3,7 +3,7 @@
  * Part of dataAccess thread
  * John Jacobsen, JJ IT Svcs, for LBNL
  * May, 2003
- * $Id: moniDataAccess.h,v 1.11 2004-01-16 02:13:13 jacobsen Exp $
+ * $Id: moniDataAccess.h,v 1.12 2004-01-21 23:01:00 jacobsen Exp $
  */
 
 #ifndef _MONI_DATA_ACCESS_
@@ -14,11 +14,11 @@
 #define MAXMONI_DATA MAXMONI_RECSIZE-4-MONI_TIME_LEN 
 
 /* WARNING: These must match values in DataAccGetMonitorMsg.java! */
-#define MONI_TYPE_HDWR_STATE_MSG     0x01
-#define MONI_TYPE_CONF_STATE_MSG     0x02
-#define MONI_TYPE_CONF_STATE_CHG_MSG 0x03
-#define MONI_TYPE_LOG_MSG            0x04
-#define MONI_TYPE_GENERIC_MSG        0x05
+#define MONI_TYPE_HDWR_STATE_MSG     0xC8
+#define MONI_TYPE_CONF_STATE_MSG     0xC9
+#define MONI_TYPE_CONF_STATE_CHG_MSG 0xCA
+#define MONI_TYPE_LOG_MSG            0xCB
+#define MONI_TYPE_GENERIC_MSG        0xCC
 
 struct moniRec {
   USHORT dataLen;    /* Number of bytes in data portion */

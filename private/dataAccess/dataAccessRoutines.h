@@ -1,5 +1,4 @@
-
-/*dataAccessRoutines.h */
+/** @file dataAccessRoutines.h */
 #ifndef _DATA_ACCESS_ROUTINES_
 #define _DATA_ACCESS_ROUTINES_
 
@@ -14,5 +13,7 @@ void initFillMsgWithData(void);
 BOOLEAN checkDataAvailable(void);
 
 int fillMsgWithData(UBYTE *msgBuffer);
+
+void initFormatEngineeringEvent(UBYTE, UBYTE, UBYTE);
 
 #endif

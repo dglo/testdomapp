@@ -5,13 +5,16 @@ Description:
 	DOM Experiment Control service thread to handle
 	special run-related functions.  Performs all 
 	"standard" DOM service functions.
-Last Modification: 1/5/04 Jacobsen :-- add monitoring functionality
+Modification: 1/5/04 Jacobsen :-- add monitoring functionality
+Modification: 1/19/04 Jacobsen :-- add configurable engineering event
 */
 
 /* system include files */
 #if defined (CYGWIN) || defined (LINUX)
 #include <stdio.h>
 #endif
+
+#include <string.h>
 
 /* DOM-related includes */
 #include "hal/DOM_MB_types.h"
@@ -38,13 +41,18 @@ extern UBYTE DOM_state;
 UBYTE FPGA_trigger_mode=CPU_TRIG_MODE;
 int FPGA_ATWD_select=0;
 
+/* Format masks: default, and configured by request */
+#define DEF_FADC_SAMP_CNT  255
+#define DEF_ATWD01_MASK    0xFF
+#define DEF_ATWD23_MASK    0xFF
+
 
 /* struct that contains common service info for
 	this service. */
 COMMON_SERVICE_INFO datacs;
 
 void dataAccessInit(void) {
-    MESSAGE_STRUCT *m;
+  //MESSAGE_STRUCT *m;
 
     datacs.state = SERVICE_ONLINE;
     datacs.lastErrorID = COMMON_No_Errors;
@@ -58,19 +66,22 @@ void dataAccessInit(void) {
 
     /* now initialize the data filling routines */
     initFillMsgWithData();
-    initFormatEngineeringEvent();
+    initFormatEngineeringEvent(DEF_FADC_SAMP_CNT, DEF_ATWD01_MASK, DEF_ATWD23_MASK);
     initDOMdataCompression(MAXDATA_VALUE);
 
 }
 
 /* data access  Entry Point */
 void dataAccess(MESSAGE_STRUCT *M) {
+#define BSIZ 1024
+  //char buf[BSIZ]; int n;
+  //unsigned long long time;
 
     UBYTE *data;
     int tmpInt;
-    UBYTE tmpByte;
+    //UBYTE tmpByte;
     UBYTE *tmpPtr;
-    USHORT tmpShort;
+    //USHORT tmpShort;
     MONI_STATUS ms;
     ULONG moniHdwrIval, moniConfIval;
     int len;
@@ -263,6 +274,11 @@ void dataAccess(MESSAGE_STRUCT *M) {
                 Message_setStatus(M, WARNING_ERROR);
                 break;
 	      }
+	      break;
+	    case DATA_ACC_SET_ENG_FMT:
+	      Message_setDataLen(M, 0);
+	      Message_setStatus(M, SUCCESS);
+	      initFormatEngineeringEvent(data[0], data[1], data[2]);
 	      break;
 	    /*----------------------------------- */
 	    /* unknown service request (i.e. message */

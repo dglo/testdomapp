@@ -3,7 +3,7 @@
  * @author Chuck McParland, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2004-01-14 23:26:03 $
+ * $Date: 2004-01-21 20:52:58 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.18 $
+ * $Revision: 1.19 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-01-14 23:26:03 $
+ * $Date: 2004-01-21 20:52:58 $
 */
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -157,31 +157,28 @@ void cleanup_exit(int);
 
 #if defined  (CYGWIN) || (LINUX)
 int main(int argc, char* argv[]) {
+    /** storage */
+#define DA_MAX_LOGNUM 6
+  char id6dig[DA_MAX_LOGNUM+1];
+  char logname[] = "dom_log_XXXXXX.txt"; /* Replace Xs w/ low bits of DOM ID */
+  int i;
+  int j;
+  int k;
+  int dataLen;
+  int send;
+  int receive;
+  int port;
+  int nready;
+  int dom_simulation_file; 
+  long fcntl_flags;
+  int result;
+  UBYTE b;
 #else
 int main(void) {
 #endif
-
-    /** storage */
-#define DA_MAX_LOGNUM 6
-    char id6dig[DA_MAX_LOGNUM+1];
-    char logname[] = "dom_log_XXXXXX.txt"; /* Replace Xs w/ low bits of DOM ID */
-    
-    int i;
-    int j;
-    int k;
-    int dataLen;
-    int send;
-    int receive;
     int status;
-    int port;
-    int nready;
-    int dom_simulation_file; 
-    long fcntl_flags;
-    int result;
     unsigned long long t_hw_last, t_cf_last, tcur;
     ULONG moni_hardware_interval, moni_config_interval;
-
-    UBYTE b;
     //    struct pollfd fds[1];
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -246,16 +243,18 @@ int main(void) {
     messageBuffers_init();
     //fprintf(stderr,"domapp: Ready to go\r\n");
 
+    /* Start up monitoring system -- do this before other *Init()'s because
+       they may want to insert monitoring information */
+    moniInit(monibuf, MONI_MASK);
+    moniRunTests();
+    //moniTestAllMonitorRecords();
+
     /* manually init all the domapp components */
     msgHandlerInit();
     domSControlInit();
     expControlInit();
     dataAccessInit();
 
-    /* Start up monitoring system */
-    moniInit(monibuf, MONI_MASK);
-    moniRunTests();
-    //moniTestAllMonitorRecords();
 
     for (;;) {
       
@@ -354,7 +353,7 @@ int recvMsg_arm_nonblock(void) {
   */
   UBYTE *dataBuffer_p;
   int   sts;
-  static int itmp=0;
+  //static int itmp=0;
 
   /* Check for availability of data -- go back if nothing. */
   if(! halIsInputData()) return COM_EAGAIN;

@@ -28,6 +28,7 @@
 #define DATA_ACC_SET_MONI_IVAL     13 /* Set monitoring interval for 
 					 hardware and configuration snapshot
 					 records */
+#define DATA_ACC_SET_ENG_FMT       14
 
 // define service specific error values
 #define DAC_Data_Overrun  4
@@ -86,6 +87,18 @@ Returned values in data portion of message:
         none 
 
 */
+
+/* 
+Response to
+        subtype: DATA_ACC_SET_ENG_FMT
+Passed values:
+        UBYTE FADC_SAMP_CNT
+        UBYTE ATWD01_MASK
+        UBYTE ATWD23_MASK
+Returned values in data portion of message: 
+        none
+*/
+
 
 #endif
 

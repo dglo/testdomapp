@@ -651,7 +651,12 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	trigger_mask = HAL_FPGA_TEST_TRIGGER_ATWD1|
 	    HAL_FPGA_TEST_TRIGGER_FADC;
     }
-    hal_FPGA_TEST_trigger_disc(trigger_mask);
+    
+    if(LCMode > 0) {
+      hal_FPGA_TEST_trigger_disc_lc(trigger_mask);
+    } else {
+      hal_FPGA_TEST_trigger_disc(trigger_mask);
+    }
 
     for(i = 0; i < ATWD_TIMEOUT_COUNT; i++) {
 	if(hal_FPGA_TEST_readout_done(trigger_mask)) {
@@ -685,7 +690,11 @@ void startLBMTriggers(void) {
     hal_FPGA_TEST_trigger_forced(trigger_mask);
     break;
   case TEST_DISC_TRIG_MODE:
-    hal_FPGA_TEST_trigger_disc(trigger_mask);
+    if(LCMode > 0) {
+      hal_FPGA_TEST_trigger_disc_lc(trigger_mask);
+    } else {
+      hal_FPGA_TEST_trigger_disc(trigger_mask);
+    }
     break;
   case TEST_PATTERN_TRIG_MODE:
   default: /* Do nothing */ 

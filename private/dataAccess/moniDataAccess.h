@@ -3,7 +3,7 @@
  * Part of dataAccess thread
  * John Jacobsen, JJ IT Svcs, for LBNL
  * May, 2003
- * $Id: moniDataAccess.h,v 1.12 2004-01-21 23:01:00 jacobsen Exp $
+ * $Id: moniDataAccess.h,v 1.13 2004-03-02 17:38:10 jacobsen Exp $
  */
 
 #ifndef _MONI_DATA_ACCESS_
@@ -42,26 +42,26 @@ struct moniRec {
 
 struct moniConfig {
   /* ALL SHORT FIELDS MUST BE FILLED BIG-ENDIAN!!! i.e. use moniBEShort() */
-  UBYTE  config_event_version;
-  UBYTE  spare0;
-  USHORT hw_config_len;
-  UBYTE  dom_mb_id[6];
-  USHORT spare1; /* skip over next two bytes to align. */
-  UBYTE  hw_base_id[8];
-  USHORT fpga_build_num;
-  USHORT sw_config_len;
-  USHORT dom_mb_sw_build_num;
-  UBYTE  msg_hdlr_major;
+  UBYTE  config_event_version;  /* 1 */
+  UBYTE  spare0;                /* 2 */
+  USHORT hw_config_len;         /* 4 */
+  UBYTE  dom_mb_id[6];          /* 10 */
+  USHORT spare1; /* skip over next two bytes to align. */ /* 12 */
+  UBYTE  hw_base_id[8];         /* 20 */
+  USHORT fpga_build_num;        /* 22 */
+  USHORT sw_config_len;         /* 24 */
+  USHORT dom_mb_sw_build_num;   /* 26 */
+  UBYTE  msg_hdlr_major;         
   UBYTE  msg_hdlr_minor;
   UBYTE  exp_ctrl_major;
   UBYTE  exp_ctrl_minor;
   UBYTE  slo_ctrl_major;
   UBYTE  slo_ctrl_minor;
   UBYTE  data_acc_major;
-  UBYTE  data_acc_minor;
-  USHORT daq_config_len;
-  ULONG  trig_config_info;
-  ULONG  atwd_readout_info;
+  UBYTE  data_acc_minor;       /* 34 */
+  USHORT daq_config_len;       /* 36 */
+  ULONG  trig_config_info;     /* 40 */
+  ULONG  atwd_readout_info;    /* 44 */
 };
 
 struct moniHardware {
@@ -165,8 +165,8 @@ void moniTestAllMonitorRecords(void);
 /* Generate one of each record */
 
 
-/* Kludge function for time stamps until HAL is fixed */
-unsigned long long moniGetTimeAsUnsigned(void);
+/* /\* Kludge function for time stamps until HAL is fixed *\/ */
+/* unsigned long long moniGetTimeAsUnsigned(void); */
 
 /* The following are utility functions used by the monitoring code per se */
 

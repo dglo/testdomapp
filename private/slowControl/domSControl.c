@@ -43,6 +43,7 @@ USHORT PMT_HV_max=PMT_HV_DEFAULT_MAX;
 BOOLEAN pulser_running = FALSE;
 USHORT pulser_rate = 0;
 UBYTE selected_mux_channel = 0;
+ULONG deadTime = 0;
 
 /* struct that contains common service info for
 	this service. */
@@ -70,7 +71,6 @@ void domSControl(MESSAGE_STRUCT *M) {
     UBYTE *tmpPtr;
     USHORT tmpShort;
     USHORT PMT_HVreq;
-    ULONG deadTime;
     int i;
 
 
@@ -257,7 +257,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    /* format up success response */
 		    /* lock, access and unlock */
 		    halWriteDAC(tmpByte,unformatShort(&data[2]));
-		    moniInsertSetDACMessage(moniGetTimeAsUnsigned(),
+		    moniInsertSetDACMessage(hal_FPGA_TEST_get_local_clock(),
 					    tmpByte, 
 					    unformatShort(&data[2]));
 		    Message_setStatus(M,SUCCESS);
@@ -289,7 +289,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		halWriteBaseDAC(PMT_HVreq);
-		moniInsertSetPMT_HV_Message(moniGetTimeAsUnsigned(),PMT_HVreq);
+		moniInsertSetPMT_HV_Message(hal_FPGA_TEST_get_local_clock(),PMT_HVreq);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -306,15 +306,16 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		/* lock, access and unlock */
-		halEnablePMT_HV();
-		moniInsertEnablePMT_HV_Message(moniGetTimeAsUnsigned());
+                halPowerUpBase();
+                halEnableBaseHV();
+		moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 	    case DSC_DISABLE_PMT_HV:
 		/* lock, access and unlock */
-		halDisablePMT_HV();
-		moniInsertDisablePMT_HV_Message(moniGetTimeAsUnsigned());		
+		halPowerDownBase();
+		moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());		
 		/* format up success response */
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
@@ -322,7 +323,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 	    case DSC_SET_PMT_HV_LIMIT:
 		/* store maximum value */
 		PMT_HV_max=unformatShort(data);
-		moniInsertSetPMT_HV_Limit_Message(moniGetTimeAsUnsigned(), PMT_HV_max);
+		moniInsertSetPMT_HV_Limit_Message(hal_FPGA_TEST_get_local_clock(), PMT_HV_max);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -452,6 +453,12 @@ void domSControl(MESSAGE_STRUCT *M) {
                 Message_setDataLen(M,0);
                 Message_setStatus(M,SUCCESS);
 		break;
+             case DSC_GET_SCALER_DEADTIME:
+                 formatLong(deadTime,&data[0]);
+                 Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
+                 Message_setStatus(M,SUCCESS);
+                 break;
+
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

@@ -3,7 +3,7 @@
  * @author Chuck McParland, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2004-01-21 20:52:58 $
+ * $Date: 2004-03-02 17:38:10 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.19 $
+ * $Revision: 1.20 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-01-21 20:52:58 $
+ * $Date: 2004-03-02 17:38:10 $
 */
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -233,7 +233,7 @@ int main(void) {
     dom_input_file  = STDIN;
     dom_output_file = STDOUT;
 
-    t_hw_last = t_cf_last = moniGetTimeAsUnsigned();
+    t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock(); //moniGetTimeAsUnsigned();
 
     /* Set input to non-blocking mode -- NOT IMPLEMENTED ON EPXA10 */
     //fcntl_flags = fcntl(dom_input_file, F_GETFL, 0);
@@ -259,7 +259,7 @@ int main(void) {
     for (;;) {
       
       /* Insert periodic monitoring records */
-      tcur = moniGetTimeAsUnsigned();
+      tcur = hal_FPGA_TEST_get_local_clock();
 
 /*       if( */
 /* 	 ((tcur & 0xFF00000000) == 0xFF00000000) && ((tcur & 0xFF0000000000) == 0xFF0000000000)) { */

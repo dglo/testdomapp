@@ -59,7 +59,7 @@ UBYTE lclEventCopy[2000];
 UBYTE *ATWDByteMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *ATWDShortMove(USHORT *data, UBYTE *buffer, int count);
 UBYTE *FADCMove(USHORT *data, UBYTE *buffer, int count);
-UBYTE *TimeMove(UBYTE *buffer);
+UBYTE *TimeMove(UBYTE *buffer, int useLatched);
 void formatEngineeringEvent(UBYTE *buffer);
 void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
@@ -270,15 +270,25 @@ UBYTE *FADCMove(USHORT *data, UBYTE *buffer, int count) {
     return buffer;
 }
 
-UBYTE *TimeMove(UBYTE *buffer) {
+UBYTE *TimeMove(UBYTE *buffer, int useLatched) {
     int i;
     union DOMtime {unsigned long long time;
 	UBYTE timeBytes[8];};
     union DOMtime t;
 
-    t.time = hal_FPGA_TEST_get_local_clock();
+    //t.time = hal_FPGA_TEST_get_local_clock(); /* Old code didn't use latched ATWD time */
+    if(useLatched) {
+      if(FPGA_ATWD_select == 0) {
+	t.time = hal_FPGA_TEST_get_atwd0_clock();
+      } else {
+	t.time = hal_FPGA_TEST_get_atwd1_clock();
+      }
+    } else {
+      t.time = hal_FPGA_TEST_get_local_clock();
+    }
+
     for(i = 0; i < 6; i++) {
-	*buffer++ = t.timeBytes[6-i];
+	*buffer++ = t.timeBytes[5-i];
     }
 
     return buffer;
@@ -384,21 +394,27 @@ void formatEngineeringEvent(UBYTE *event) {
 //  set trigger mode
     
     /* Form up the mask indicating which sort of event it was */
+
+    /* set to match trigger mode values -DH */
+
+    if(FPGA_trigger_mode == TEST_PATTERN_TRIG_MODE) {
+      *event++ = 0x0;
+    }
     if(FPGA_trigger_mode == CPU_TRIG_MODE) {
-      *event++ = 0x10;
+      *event++ = 0x1;
     }
     else if (FPGA_trigger_mode == TEST_DISC_TRIG_MODE) {
-      *event++ = 0x40; /* Special case -- don't know yet if SPE or MPE; this was 0x10. */
+      *event++ = 0x2; /* we know this is SPE disc trigger so set the byte to 0x2 -DH */
     }
     else {
-      *event++ = 0x80; /* "TBD" in spec same as 0x40, above */
+      *event++ = 0x80; /* default when trig mode unset or unrecognized - currently test pattern -DH */
     }
 
 //  spare byte
     *event++ = Spare;
 
 //  insert the time
-    event = TimeMove(event);
+    event = TimeMove(event, (FPGA_trigger_mode == TEST_DISC_TRIG_MODE ? 1 : 0));
 
 //  do something with flash data
     event = FADCMove(FlashADCData, event, (int)FlashADCLen);

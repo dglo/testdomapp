@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.13 2004-01-30 16:50:56 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.15 2004-03-16 17:39:03 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -384,7 +384,7 @@ void moniInsertHdwrStateMessage(unsigned long long time) {
     mh.DAC_MUX_BIAS            =  moniBEShort(halReadDAC(DOM_HAL_DAC_MUX_BIAS));
     
     mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(0);
-    mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadPMT_HV());
+    mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadBaseADC());
     mh.DOM_MB_TEMPERATURE        = moniBEShort(halReadTemp());
     spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
     mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
@@ -458,15 +458,15 @@ void moniInsertDisablePMT_HV_Message(unsigned long long time) {
   moniInsertRec(&mr);
 }
 
-unsigned long long moniGetTimeAsUnsigned(void) { 
-  /* Fix signed-like peculiarity in HAL */
-  //return hal_FPGA_TEST_get_local_clock() & 0xFFFFFFFF;
-  return hal_FPGA_TEST_get_local_clock();
-}
+/* unsigned long long moniGetTimeAsUnsigned(void) {  */
+/*   /\* Fix signed-like peculiarity in HAL *\/ */
+/*   //return hal_FPGA_TEST_get_local_clock() & 0xFFFFFFFF; */
+/*   return hal_FPGA_TEST_get_local_clock(); */
+/* } */
 
 void moniPuts(char *s) {
   unsigned long long time;
-  time = moniGetTimeAsUnsigned();
+  time = hal_FPGA_TEST_get_local_clock();
   moniInsertDiagnosticMessage(s, time, strlen(s));
 }
 
@@ -490,7 +490,7 @@ void moniRunTests() {
 
   //n = snprintf(buf, BSIZ, "STARTING SELF TEST");
     
-  time = moniGetTimeAsUnsigned();
+  time = hal_FPGA_TEST_get_local_clock();
 
   /* Make sure buffer empty */
   ms = moniFetchRec(&mr);
@@ -520,7 +520,7 @@ void moniRunTests() {
 
   /* Fill small set of records */
   for(irec=0; irec < NSMALL; irec++) {
-    time = moniGetTimeAsUnsigned();
+    time = hal_FPGA_TEST_get_local_clock();
     moniInsertDiagnosticMessage(msg,time,strlen(msg));
   }
 
@@ -610,7 +610,7 @@ void moniRunTests() {
 
   /* store and fetch a bunch of times */
   for(irec=0; irec < MONI_CIRCBUF_RECS*2; irec++) {
-    time = moniGetTimeAsUnsigned();
+    time = hal_FPGA_TEST_get_local_clock();
     moniInsertDiagnosticMessage(msg,time,strlen(msg));
     ms = moniFetchRec(&mr);
     if(ms != MONI_OK && ms != MONI_WRAPPED && ms != MONI_OVERFLOW) {
@@ -629,11 +629,11 @@ void moniRunTests() {
   moniInsertDiagnosticMessage("MONI SELF TEST OK", time, 17);
 
   /* These all seem to work: 
-     moniInsertSetDACMessage(moniGetTimeAsUnsigned(), 1, 2);
-     moniInsertSetPMT_HV_Message(moniGetTimeAsUnsigned(), 3);
-     moniInsertSetPMT_HV_Limit_Message(moniGetTimeAsUnsigned(), 4);
-     moniInsertEnablePMT_HV_Message(moniGetTimeAsUnsigned());
-     moniInsertDisablePMT_HV_Message(moniGetTimeAsUnsigned());
+     moniInsertSetDACMessage(hal_FPGA_TEST_get_local_clock(), 1, 2);
+     moniInsertSetPMT_HV_Message(hal_FPGA_TEST_get_local_clock(), 3);
+     moniInsertSetPMT_HV_Limit_Message(hal_FPGA_TEST_get_local_clock(), 4);
+     moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
+     moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
   */
   return;
 

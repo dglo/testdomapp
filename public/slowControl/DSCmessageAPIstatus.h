@@ -45,6 +45,7 @@
 #define DSC_PULSER_RUNNING 41
 #define DSC_GET_RATE_METERS 42
 #define DSC_SET_SCALER_DEADTIME 43
+#define DSC_GET_SCALER_DEADTIME 44
 
 /* Slow Control specific Last error ID values */
 #define DSC_Failed_Challenge 4
@@ -375,5 +376,15 @@ Size of returned values in data portion:
    Returned values: 
         None
 */
+
+/* Response to: 
+         subType: DSC_GET_SCALER_DEADTIME
+    Passed values: 
+         none 
+    Size of passed values: */
+/* Returned values in data portion of message:
+         ULONG SCALER_DEADTIME
+    Size of returned values in data portion: */
+#define DSC_GET_SCALER_DEADTIME_LEN 4
 
 #endif

@@ -462,6 +462,7 @@ void formatEngineeringEvent(UBYTE *event) {
 void getPatternEvent(USHORT *Ch0Data, USHORT *Ch1Data,
         USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC) {
     int i;
+    MiscBits = 0;
     for(i = 0; i < ATWDCHSIZ; i++) {
 	Ch0Data[i] = i;
   	Ch1Data[i] = ATWDCHSIZ - i;
@@ -507,11 +508,13 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	    //fprintf(stderr,"readout ready\r\n");
 
 	    if(FPGA_ATWD_select == 0) {
+	        MiscBits = 0;
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, 0, 0, 0, 0, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
+	        MiscBits = 1;
 	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
@@ -543,11 +546,13 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
     for(i = 0; i < ATWD_TIMEOUT_COUNT; i++) {
 	if(hal_FPGA_TEST_readout_done(trigger_mask)) {
 	    if(FPGA_ATWD_select == 0) {
+	        MiscBits = 0;
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, 0, 0, 0, 0, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
+	        MiscBits = 1;
 	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, ATWDCHSIZ, 
 		    FADC, (int)FlashADCLen, trigger_mask);

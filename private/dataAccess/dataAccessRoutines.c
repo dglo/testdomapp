@@ -652,7 +652,7 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	    HAL_FPGA_TEST_TRIGGER_FADC;
     }
     
-    if(LCMode > 0) {
+    if(LCmode > 0) {
       hal_FPGA_TEST_trigger_disc_lc(trigger_mask);
     } else {
       hal_FPGA_TEST_trigger_disc(trigger_mask);
@@ -690,7 +690,7 @@ void startLBMTriggers(void) {
     hal_FPGA_TEST_trigger_forced(trigger_mask);
     break;
   case TEST_DISC_TRIG_MODE:
-    if(LCMode > 0) {
+    if(LCmode > 0) {
       hal_FPGA_TEST_trigger_disc_lc(trigger_mask);
     } else {
       hal_FPGA_TEST_trigger_disc(trigger_mask);

@@ -1,83 +1,61 @@
 /*
- * @mainpage domapp socket based simulation program
- * @author Chuck McParland, with mods by Jacobsen
+ * @mainpage domapp - DOM Application program
+ * @author Chuck McParland originally, now updated and maintained by 
+ * J. Jacobsen (jacobsen@npxdesigns.com)
  * Based on original code by mcp.
  *
- * $Date: 2004-01-21 20:52:58 $
+ * $Date: 2004-06-15 20:56:46 $
  *
- * @section ration Rationale
- *
- * This code provides low level initialization and communications
- * code that allow execution of the DOM application within the 
- * either the Linux or Cygwin environment.  This particular verstion
- * uses stdin and stdout to perform all message passing communications.
- * It is intended to be run by the simboot program and, therefore, will
- * have these file descriptors mapped to a pre-established IP socket.
- *
- * @section details Implementation details
- *
- * This implementation uses the standard ipcmsg messaging package to
- * simulate the use of shared message queues between the various threads
- * of the DOM application.  This facility will be replaced by a similar
- * mechanism native to the DOM MB operating system (Nucleus).
- *
- * @subsection lang Language
- *
- * For DOM application compatibility, this code is written in C. 
  *
  */
 
 /**
- * @file domappFile.c
+ * @file domapp.c
  * 
  * This file contains low level initialization routines used to
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.19 $
+ * $Revision: 1.19.2.1 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-01-21 20:52:58 $
+ * $Date: 2004-06-15 20:56:46 $
 */
+
+#include <unistd.h> /* Needed for read/write */
+#include <stdio.h> /* snprintf */
 
 #if defined (CYGWIN) || defined (LINUX)
 /** system include files */
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <time.h>   /* for time() */
 #include <signal.h> /* For signal() */
-
-/* JEJ Included these files to pick up O_RDWR flags for open */
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <errno.h>  /* For errno, on open */
 #include <fcntl.h>
-/* JEJ */
-#include <errno.h> /** For errno, on open */
-#else
-#include <unistd.h> /* Needed for read/write */
+
 #endif
 
-/** project include files */
-#if defined (CYGWIN) || defined (LINUX)
-#include "hal/DOM_MB_hal_simul.h"
-#else 
-#endif
-
-
-
-/* DOMtypes.h needed to build under linux */
-#include "domapp_common/DOMtypes.h"
-
-#include "domapp_common/packetFormatInfo.h"
-#include "domapp_common/messageAPIstatus.h"
-#include "domapp_common/commonMessageAPIstatus.h"
+// DOM-related includes
+#include "hal/DOM_MB_types.h"
+#include "hal/DOM_MB_hal.h"
+#include "domapp_common/DOMstateInfo.h"
 #include "message/message.h"
 #include "message/messageBuffers.h"
-#include "message/genericMsgSendRecv.h"	
-#include "expControl/expControl.h"
-//#include "dataAccess/dataAccess.h"
-#include "slowControl/domSControl.h"
+#include "dataAccess/DOMdataCompression.h"
 #include "dataAccess/moniDataAccess.h"
+#include "expControl/expControl.h"
+#include "expControl/EXPmessageAPIstatus.h"
+#include "slowControl/DSCmessageAPIstatus.h"
+#include "dataAccess/moniDataAccess.h"
+#include "msgHandler/msgHandler.h"
+#include "slowControl/domSControl.h"
+#include "dataAccess/dataAccess.h"
+#include "message/genericMsgSendRecv.h"
+
+int recvMsg_arm_nonblock(void);
 
 /** Monitoring delay --- now set by dataAccess message */
 //#define DOMAPP_MONI_DELAY 0xA000000
@@ -178,7 +156,8 @@ int main(void) {
 #endif
     int status;
     unsigned long long t_hw_last, t_cf_last, tcur;
-    ULONG moni_hardware_interval, moni_config_interval;
+    unsigned long long moni_hardware_interval, moni_config_interval;
+
     //    struct pollfd fds[1];
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -233,7 +212,7 @@ int main(void) {
     dom_input_file  = STDIN;
     dom_output_file = STDOUT;
 
-    t_hw_last = t_cf_last = moniGetTimeAsUnsigned();
+    t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock();
 
     /* Set input to non-blocking mode -- NOT IMPLEMENTED ON EPXA10 */
     //fcntl_flags = fcntl(dom_input_file, F_GETFL, 0);
@@ -255,25 +234,50 @@ int main(void) {
     expControlInit();
     dataAccessInit();
 
+    // REV 4 !!! halStartReadTemp();
+    USHORT temperature = 0; // Chilly
 
     for (;;) {
       
       /* Insert periodic monitoring records */
-      tcur = moniGetTimeAsUnsigned();
-
-/*       if( */
-/* 	 ((tcur & 0xFF00000000) == 0xFF00000000) && ((tcur & 0xFF0000000000) == 0xFF0000000000)) { */
-/* 	moniInsertDiagnosticMessage("GOT ODD THING", tcur, 12); */
-/*       } */
-      
+      tcur = hal_FPGA_TEST_get_local_clock();      
       moni_hardware_interval = moniGetHdwrIval();
       moni_config_interval   = moniGetConfIval();
-      
+      long long dt  = tcur-t_hw_last;
+
       if(moni_hardware_interval > 0) {
-	if(t_hw_last > tcur /* overflow case (should be RARE)  */
-	   || (tcur-t_hw_last) > moni_hardware_interval) {
-	  //moniInsertDiagnosticMessage("MONI HARDWARE INTERVAL", tcur, 22);
-	  moniInsertHdwrStateMessage(tcur);
+	if(dt < 0  /* overflow case (should be RARE)  */
+	   || dt > moni_hardware_interval) {
+
+	  /* Update temperature if it's done */
+	  // REV 4 !!! if(halReadTempDone()) {
+	  // REV 4 !!!   temperature = halFinishReadTemp();
+	  // REV 4 !!!   halStartReadTemp();
+	  // REV 4 !!! }
+	  temperature = halReadTemp();
+	  //temperature = 666;
+	  moniInsertHdwrStateMessage(tcur, temperature);
+
+#ifdef DEBUGMONI
+          mprintf("MONI "
+		  "tcur=0x%08lx%08lx "
+		  "hwlast=0x%08lx%08lx "
+		  "cflast=0x%08lx%08lx "
+		  "hwival=0x%lx%lx "
+		  "cfival=0x%lx%lx "
+		  "dt=%ld ", 
+		  (unsigned long) (tcur>>32 & 0xFFFFFFFF),
+		  (unsigned long) (tcur & 0xFFFFFFFF),
+		  (unsigned long) (t_hw_last>>32 & 0xFFFFFFFF),
+		  (unsigned long) (t_hw_last & 0xFFFFFFFF),
+		  (unsigned long) (t_cf_last>>32 & 0xFFFFFFFF),
+		  (unsigned long) (t_cf_last & 0xFFFFFFFF),
+		  (unsigned long) (moni_hardware_interval>>32 & 0xFFFFFFFF),
+		  (unsigned long) (moni_hardware_interval & 0xFFFFFFFF),
+		  (unsigned long) (moni_config_interval>>32 & 0xFFFFFFFF),
+		  (unsigned long) (moni_config_interval & 0xFFFFFFFF),
+		  (unsigned long) dt);
+#endif
 	  t_hw_last = tcur;
 	}
       }
@@ -281,7 +285,6 @@ int main(void) {
       if(moni_config_interval > 0) {
         if(t_cf_last > tcur /* overflow case (should be RARE)  */
            || (tcur-t_cf_last) > moni_config_interval) {
-          //moniInsertDiagnosticMessage("MONI CONFIG INTERVAL", tcur, 20);
 	  moniInsertConfigStateMessage(tcur);
 	  t_cf_last = tcur;
 	}
@@ -382,16 +385,10 @@ int recvMsg_arm_nonblock(void) {
  * @see sendMsg() complimentary function.
 */
 int recvMsg(void) {
-  /** length of entire message to be received */
-  long msgLength;
-  /** number of bytes to be received for a given msg part */
-  int targetLength;
   /** recv sts */
   int sts;
   /* pointer to message data buffer */
   UBYTE *dataBuffer_p;
-  /* misc buffer pointer */
-  UBYTE *buffer_p;
   
   //printf("in rcvMsg: ready to allocate buffer\r\n");
   /* receive the message header */

@@ -387,5 +387,4 @@ Size of returned values in data portion:
    Size of returned values in data portion: */
 #define DSC_GET_SCALER_DEADTIME_LEN 4
 
-
 #endif

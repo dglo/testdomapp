@@ -34,8 +34,8 @@ Modifications by John Jacobsen 2004 to implement configurable engineering events
 #define ENG_EVENT_FID 0x1;
 
 /* defines for ATWD readout */
-#define ATWD_TIMEOUT_COUNT 20
-#define ATWD_TIMEOUT_USEC 1000
+#define ATWD_TIMEOUT_COUNT 4000
+#define ATWD_TIMEOUT_USEC 5
 
 /* global storage and functions */
 extern UBYTE FPGA_trigger_mode;
@@ -276,7 +276,6 @@ UBYTE *TimeMove(UBYTE *buffer, int useLatched) {
 	UBYTE timeBytes[8];};
     union DOMtime t;
 
-
     //t.time = hal_FPGA_TEST_get_local_clock(); /* Old code didn't use latched ATWD time */
     if(useLatched) {
       if(FPGA_ATWD_select == 0) {
@@ -396,6 +395,7 @@ void formatEngineeringEvent(UBYTE *event) {
     
     /* Form up the mask indicating which sort of event it was */
 
+
     /* set to match trigger mode values -DH */
  
     if(FPGA_trigger_mode == TEST_PATTERN_TRIG_MODE) {
@@ -410,6 +410,8 @@ void formatEngineeringEvent(UBYTE *event) {
 
 //  spare byte
     *event++ = Spare;
+// TEST spare, easier to spot
+//    *event++ = 66;
 
 //  insert the time
     event = TimeMove(event, (FPGA_trigger_mode == TEST_DISC_TRIG_MODE ? 1 : 0));

@@ -257,7 +257,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    /* format up success response */
 		    /* lock, access and unlock */
 		    halWriteDAC(tmpByte,unformatShort(&data[2]));
-		    moniInsertSetDACMessage(moniGetTimeAsUnsigned(),
+		    moniInsertSetDACMessage(hal_FPGA_TEST_get_local_clock(),
 					    tmpByte, 
 					    unformatShort(&data[2]));
 		    Message_setStatus(M,SUCCESS);
@@ -289,7 +289,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    break;
 		}
 		halWriteBaseDAC(PMT_HVreq);
-		moniInsertSetPMT_HV_Message(moniGetTimeAsUnsigned(),PMT_HVreq);
+		moniInsertSetPMT_HV_Message(hal_FPGA_TEST_get_local_clock(),PMT_HVreq);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -307,14 +307,14 @@ void domSControl(MESSAGE_STRUCT *M) {
 		}
 		/* lock, access and unlock */
 		halEnablePMT_HV();
-		moniInsertEnablePMT_HV_Message(moniGetTimeAsUnsigned());
+		moniInsertEnablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 	    case DSC_DISABLE_PMT_HV:
 		/* lock, access and unlock */
 		halDisablePMT_HV();
-		moniInsertDisablePMT_HV_Message(moniGetTimeAsUnsigned());		
+		moniInsertDisablePMT_HV_Message(hal_FPGA_TEST_get_local_clock());		
 		/* format up success response */
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
@@ -322,7 +322,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 	    case DSC_SET_PMT_HV_LIMIT:
 		/* store maximum value */
 		PMT_HV_max=unformatShort(data);
-		moniInsertSetPMT_HV_Limit_Message(moniGetTimeAsUnsigned(), PMT_HV_max);
+		moniInsertSetPMT_HV_Limit_Message(hal_FPGA_TEST_get_local_clock(), PMT_HV_max);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;

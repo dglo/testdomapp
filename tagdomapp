@@ -63,6 +63,10 @@ print "Create new release with release tag \"$tag\"? ";
 chomp(my $resp = <STDIN>);
 exit if($resp !~ /^y/i);
 
+print "Did you update RELEASE_NOTES for $tag? ";
+chomp(my $resp = <STDIN>);
+exit if($resp !~ /^y/i);
+
 my $header = "public/domapp_common/version.h";
 die "Can't find current $header!  Old version of domapp?\n" unless -f $header;
 print "Updating $header...\n";

@@ -51,20 +51,19 @@ USHORT simspe[128] = {
   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-#warning fixme - make consistent
-#define EARLY_PEDGRADER /* apply ped. subtraction / roadgrader early on */
 /* Externally available pedestal waveforms */
 extern unsigned short atwdpedavg[2][4][128];
 extern unsigned short fadcpedavg[256];
 extern USHORT atwdThreshold[2][4], fadcThreshold;
 
-extern int doLC;
+/* LC mode, defined via slow control */
+extern UBYTE LCmode;
 
 /* define size of data buffer in message */
 #define DATA_BUFFER_LEN MAXDATA_VALUE
  
 /* defines for engineering events */
-#define ENG_EVENT_FID 0x1;
+#define ENG_EVENT_FID 0x2; /* Use format 2, with LC enable bits set */
 
 /* defines for ATWD readout */
 #define ATWD_TIMEOUT_COUNT 4000
@@ -509,19 +508,22 @@ void formatEngineeringEvent(UBYTE *event, unsigned long long time) {
   *event++ = (ATWDChMask[1]<<4) | ATWDChMask[0];
   *event++ = (ATWDChMask[3]<<4) | ATWDChMask[2];
   
-  //  set trigger mode  
-  /* Form up the mask indicating which sort of event it was */
+  /* Trigger mask */
+  UBYTE trigmask;
   switch(FPGA_trigger_mode) {
   case TEST_PATTERN_TRIG_MODE:
-    *event++ = 0; break;
+    trigmask = 0; break;
   case CPU_TRIG_MODE:
-    *event++ = 1; break;
+    trigmask = 1; break;
   case TEST_DISC_TRIG_MODE:
-    *event++ = 2; break;
+    trigmask = 2; break;
   default:
-    *event++ = 0x80; break;
+    trigmask = 0; trigmask |= TRIG_UNKNOWN_MODE; break;
   }
-  
+  if(LCmode == 1 || LCmode == 2) trigmask |= TRIG_LC_UPPER_ENA;
+  if(LCmode == 1 || LCmode == 3) trigmask |= TRIG_LC_LOWER_ENA;
+  *event++ = trigmask;
+
   //  spare byte
   *event++ = Spare;
   
@@ -841,8 +843,8 @@ void bufferLBMTriggers(void) {
     /* Bail if nothing available */
     //tsr0 = (FPGA(TEST_SIGNAL_RESPONSE));
     if(!hal_FPGA_TEST_readout_done(trigger_mask)) break;
-#warning hal_FPGA_TEST_readout_done kludge until firmware 
-    if(!hal_FPGA_TEST_readout_done(trigger_mask)) break;
+    if(!hal_FPGA_TEST_readout_done(trigger_mask)) break; /* Do this twice to deal with
+							    firmware issues in pre-300 SW */
     //tsr1 = FPGA(TEST_SIGNAL_RESPONSE);
     //mprintf("tsr0 0x%08lx tsr1 0x%08lx trigger_mask 0x%02x", tsr0, tsr1, trigger_mask);
     nDOMRawTriggers++;
@@ -916,7 +918,6 @@ void bufferLBMTriggers(void) {
       time = hal_FPGA_TEST_get_local_clock();
     }
     /* Start next trigger */
-#warning fixme make sure no race conditions between startLBMTriggers and formatEngineeringEvent
     TBEG(bstarttrig);
     startLBMTriggers(); 
     TEND(&bstarttrig);

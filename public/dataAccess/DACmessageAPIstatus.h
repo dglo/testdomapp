@@ -36,6 +36,7 @@
 #define DATA_ACC_GET_SW_DATA_COMPRESSION 19
 #define DATA_ACC_SET_SW_DATA_COMPRESSION_FORMAT 20
 #define DATA_ACC_GET_SW_DATA_COMPRESSION_FORMAT 21
+#define DATA_ACC_RESET_LBM 22
 
 // define service specific error values
 #define DAC_Data_Overrun     4

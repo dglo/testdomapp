@@ -33,6 +33,7 @@ Modification: 5/10/04 Jacobsen :-- put more than one monitoring rec. per request
 #include "dataAccess/compressEvent.h"
 #include "domapp_common/DOMstateInfo.h"
 #include "slowControl/DSCmessageAPIstatus.h"
+#include "domapp_common/lbm.h"
 
 /* extern functions */
 extern void formatLong(ULONG value, UBYTE *buf);
@@ -202,6 +203,12 @@ void dataAccess(MESSAGE_STRUCT *M) {
       Message_setStatus(M, SUCCESS);
       break;
       
+    case DATA_ACC_RESET_LBM:
+      emptyLBMQ();
+      Message_setDataLen(M, 0);
+      Message_setStatus(M, SUCCESS);
+      break;
+
       /* JEJ: Deal with configurable intervals for monitoring events */
     case DATA_ACC_SET_MONI_IVAL:
       moniHdwrIval = FPGA_HAL_TICKS_PER_SEC * unformatLong(Message_getData(M));

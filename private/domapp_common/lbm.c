@@ -3,7 +3,7 @@
    Start with malloc version of LBM
 
    Jacobsen 8/10/04 jacobsen@npxdesigns.com
-   $Id: lbm.c,v 1.4.2.1 2004-11-20 20:56:47 jacobsen Exp $
+   $Id: lbm.c,v 1.4 2004-09-16 22:51:29 jacobsen Exp $
 
 */
 

@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.21.4.2.2.2 2004-11-20 01:20:57 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.30 2004-11-30 22:45:18 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -477,6 +477,36 @@ void moniInsertDisablePMT_HV_Message(unsigned long long time) {
   mr.time = time;
   mr.data[0] = DOM_SLOW_CONTROL;
   mr.data[1] = DSC_DISABLE_PMT_HV;
+  moniInsertRec(&mr);
+}
+
+
+
+void moniInsertLCModeChangeMessage(unsigned long long time, UBYTE mode) {
+  struct moniRec mr;
+  mr.dataLen = 3;
+  mr.fiducial.fstruct.moniEvtType = MONI_TYPE_CONF_STATE_CHG_MSG;
+  mr.time = time;
+  mr.data[0] = DOM_SLOW_CONTROL;
+  mr.data[1] = DSC_SET_LOCAL_COIN_MODE;
+  mr.data[2] = mode;
+  moniInsertRec(&mr);
+}
+
+
+void moniInsertLCWindowChangeMessage(unsigned long long time,
+                                     ULONG up_pre_ns, ULONG up_post_ns,
+                                     ULONG dn_pre_ns, ULONG dn_post_ns) {
+  struct moniRec mr;
+  mr.dataLen = 2+4*sizeof(ULONG);
+  mr.fiducial.fstruct.moniEvtType = MONI_TYPE_CONF_STATE_CHG_MSG;
+  mr.time = time;
+  mr.data[0] = DOM_SLOW_CONTROL;
+  mr.data[1] = DSC_SET_LOCAL_COIN_WINDOW;
+  formatLong(up_pre_ns,  &(mr.data[2]));
+  formatLong(up_post_ns, &(mr.data[6]));
+  formatLong(dn_pre_ns,  &(mr.data[10]));
+  formatLong(dn_post_ns,  &(mr.data[14]));
   moniInsertRec(&mr);
 }
 

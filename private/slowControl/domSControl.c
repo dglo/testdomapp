@@ -48,7 +48,7 @@ USHORT pulser_rate = 0;
 UBYTE selected_mux_channel = 0;
 ULONG deadTime = 0;
 ULONG up_pre_ns, up_post_ns, dn_pre_ns, dn_post_ns;
-int doLC;
+UBYTE LCmode = 0;
 
 /* struct that contains common service info for
 	this service. */
@@ -466,16 +466,29 @@ void domSControl(MESSAGE_STRUCT *M) {
 	     case DSC_SET_LOCAL_COIN_MODE:
 		 Message_setDataLen(M,0);
 		 if(data[0] == 0) {
-		   doLC = 0;
-		   hal_FPGA_TEST_disable_spe_lc();
-		   mprintf("disabled LC");
+		   LCmode = data[0];
+       		   hal_FPGA_TEST_disable_spe_lc();
+		   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(), 
+						 LCmode);
 		   Message_setStatus(M,SUCCESS);
 		 } else if(data[0] == 1) {
-		   doLC = 1;
+		   LCmode = data[0];
 		   hal_FPGA_TEST_enable_spe_lc(1,1);
-		   mprintf("enabled LC");
-		   mprintf("build number is %d", hal_FPGA_query_build());
+                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
 		   Message_setStatus(M,SUCCESS);
+                 } else if(data[0] == 2) { /* Upper ONLY */
+                   LCmode = data[0];
+                   hal_FPGA_TEST_enable_spe_lc(0, 1);
+                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
+                   Message_setStatus(M,SUCCESS);
+                 } else if(data[0] == 3) { /* Lower ONLY */
+                   LCmode = data[0];
+                   hal_FPGA_TEST_enable_spe_lc(1, 0);
+                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
+                   Message_setStatus(M,SUCCESS);
 		 } else {
 		   domsc.msgProcessingErr++;
 		   strcpy(domsc.lastErrorStr,DSC_ILLEGAL_LC_MODE);
@@ -485,7 +498,7 @@ void domSControl(MESSAGE_STRUCT *M) {
 		 }
 	         break;
 	     case DSC_GET_LOCAL_COIN_MODE:
-		 data[0] = doLC?1:0;
+		 data[0] = LCmode;
                  Message_setDataLen(M,1);
 		 Message_setStatus(M,SUCCESS);
 	         break;
@@ -505,11 +518,10 @@ void domSControl(MESSAGE_STRUCT *M) {
 		   Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
 		 } else {
 		   Message_setStatus(M,SUCCESS);
-		   mprintf("hal_FPGA_TEST_set_lc_launch_window %d %d %d %d",
-			   up_pre_ns, up_post_ns,
-			   dn_pre_ns, dn_post_ns);
-		 }
-
+		   moniInsertLCWindowChangeMessage(hal_FPGA_TEST_get_local_clock(),
+						   up_pre_ns, up_post_ns,
+						   dn_pre_ns, dn_post_ns);
+		 }		 
 	         break;
 	     case DSC_GET_LOCAL_COIN_WINDOW:
 	         formatLong(up_pre_ns,  &data[0]);

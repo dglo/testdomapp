@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.18 2004-05-12 19:06:51 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.21 2004-05-20 15:56:20 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -357,54 +357,44 @@ void moniFillBogusHdwrStateMessage(struct moniHardware *mh) {
 
 
 /* Type MONI_TYPE_HDWR_STATE_MSG - log dom state message */
-void moniInsertHdwrStateMessage(unsigned long long time, int updateTemp) {
+void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature) {
   unsigned long spe, mpe;
   struct moniRec mr;
   struct moniHardware mh;
   int test = FALSE;
-  static unsigned short last_dom_mb_temp = 0;
 
   if(test) {
     moniFillBogusHdwrStateMessage(&mh);
   } else {    
-    mh.STATE_EVENT_VERSION    = 0;
-    mh.spare                  = 0;
-    
-    mh.ADC_VOLTAGE_SUM        = moniBEShort(halReadADC(DOM_HAL_ADC_VOLTAGE_SUM));
-    mh.ADC_5V_POWER_SUPPLY    = moniBEShort(halReadADC(DOM_HAL_ADC_5V_POWER_SUPPLY));
-    mh.ADC_PRESSURE           = moniBEShort(halReadADC(DOM_HAL_ADC_PRESSURE));
-    mh.ADC_5V_CURRENT         = moniBEShort(halReadADC(DOM_HAL_ADC_5V_CURRENT));
-    mh.ADC_3_3V_CURRENT       = moniBEShort(halReadADC(DOM_HAL_ADC_3_3V_CURRENT));
-    mh.ADC_2_5V_CURRENT       = moniBEShort(halReadADC(DOM_HAL_ADC_2_5V_CURRENT));
-    mh.ADC_1_8V_CURRENT       = moniBEShort(halReadADC(DOM_HAL_ADC_1_8V_CURRENT));
-    mh.ADC_MINUS_5V_CURRENT   = moniBEShort(halReadADC(DOM_HAL_ADC_MINUS_5V_CURRENT));
-    
-    mh.DAC_ATWD0_TRIGGER_BIAS  =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_TRIGGER_BIAS));
-    mh.DAC_ATWD0_RAMP_TOP      =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_TOP));
-    mh.DAC_ATWD0_RAMP_RATE     =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_RATE));
-    mh.DAC_ATWD_ANALOG_REF     =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD_ANALOG_REF));
-    mh.DAC_ATWD1_TRIGGER_BIAS  =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_TRIGGER_BIAS));
-    mh.DAC_ATWD1_RAMP_TOP      =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_TOP));
-    mh.DAC_ATWD1_RAMP_RATE     =  moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_RATE));
-    mh.DAC_PMT_FE_PEDESTAL     =  moniBEShort(halReadDAC(DOM_HAL_DAC_PMT_FE_PEDESTAL));
-    mh.DAC_MULTIPLE_SPE_THRESH =  moniBEShort(halReadDAC(DOM_HAL_DAC_MULTIPLE_SPE_THRESH));
-    mh.DAC_SINGLE_SPE_THRESH   =  moniBEShort(halReadDAC(DOM_HAL_DAC_SINGLE_SPE_THRESH));
-    mh.DAC_LED_BRIGHTNESS      =  moniBEShort(halReadDAC(DOM_HAL_DAC_LED_BRIGHTNESS));
-    mh.DAC_FAST_ADC_REF        =  moniBEShort(halReadDAC(DOM_HAL_DAC_FAST_ADC_REF));
-
-    mh.DAC_INTERNAL_PULSER     =  moniBEShort(halReadDAC(DOM_HAL_DAC_INTERNAL_PULSER));
-    mh.DAC_FE_AMP_LOWER_CLAMP  =  moniBEShort(halReadDAC(DOM_HAL_DAC_FE_AMP_LOWER_CLAMP));
-    mh.DAC_FL_REF              =  moniBEShort(halReadDAC(DOM_HAL_DAC_FL_REF));
-    mh.DAC_MUX_BIAS            =  moniBEShort(halReadDAC(DOM_HAL_DAC_MUX_BIAS));
-    
-    mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(0);
+    mh.STATE_EVENT_VERSION       = 0;
+    mh.spare                     = 0;
+    mh.ADC_VOLTAGE_SUM           = moniBEShort(halReadADC(DOM_HAL_ADC_VOLTAGE_SUM));
+    mh.ADC_5V_POWER_SUPPLY       = moniBEShort(halReadADC(DOM_HAL_ADC_5V_POWER_SUPPLY));
+    mh.ADC_PRESSURE              = moniBEShort(halReadADC(DOM_HAL_ADC_PRESSURE));
+    mh.ADC_5V_CURRENT            = moniBEShort(halReadADC(DOM_HAL_ADC_5V_CURRENT));
+    mh.ADC_3_3V_CURRENT          = moniBEShort(halReadADC(DOM_HAL_ADC_3_3V_CURRENT));
+    mh.ADC_2_5V_CURRENT          = moniBEShort(halReadADC(DOM_HAL_ADC_2_5V_CURRENT));
+    mh.ADC_1_8V_CURRENT          = moniBEShort(halReadADC(DOM_HAL_ADC_1_8V_CURRENT));
+    mh.ADC_MINUS_5V_CURRENT      = moniBEShort(halReadADC(DOM_HAL_ADC_MINUS_5V_CURRENT));
+    mh.DAC_ATWD0_TRIGGER_BIAS    = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_TRIGGER_BIAS));
+    mh.DAC_ATWD0_RAMP_TOP        = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_TOP));
+    mh.DAC_ATWD0_RAMP_RATE       = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD0_RAMP_RATE));
+    mh.DAC_ATWD_ANALOG_REF       = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD_ANALOG_REF));
+    mh.DAC_ATWD1_TRIGGER_BIAS    = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_TRIGGER_BIAS));
+    mh.DAC_ATWD1_RAMP_TOP        = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_TOP));
+    mh.DAC_ATWD1_RAMP_RATE       = moniBEShort(halReadDAC(DOM_HAL_DAC_ATWD1_RAMP_RATE));
+    mh.DAC_PMT_FE_PEDESTAL       = moniBEShort(halReadDAC(DOM_HAL_DAC_PMT_FE_PEDESTAL));
+    mh.DAC_MULTIPLE_SPE_THRESH   = moniBEShort(halReadDAC(DOM_HAL_DAC_MULTIPLE_SPE_THRESH));
+    mh.DAC_SINGLE_SPE_THRESH     = moniBEShort(halReadDAC(DOM_HAL_DAC_SINGLE_SPE_THRESH));
+    mh.DAC_LED_BRIGHTNESS        = moniBEShort(halReadDAC(DOM_HAL_DAC_LED_BRIGHTNESS));
+    mh.DAC_FAST_ADC_REF          = moniBEShort(halReadDAC(DOM_HAL_DAC_FAST_ADC_REF));
+    mh.DAC_INTERNAL_PULSER       = moniBEShort(halReadDAC(DOM_HAL_DAC_INTERNAL_PULSER));
+    mh.DAC_FE_AMP_LOWER_CLAMP    = moniBEShort(halReadDAC(DOM_HAL_DAC_FE_AMP_LOWER_CLAMP));
+    mh.DAC_FL_REF                = moniBEShort(halReadDAC(DOM_HAL_DAC_FL_REF));
+    mh.DAC_MUX_BIAS              = moniBEShort(halReadDAC(DOM_HAL_DAC_MUX_BIAS));
+    mh.PMT_BASE_HV_SET_VALUE     = moniBEShort(halReadBaseDAC());
     mh.PMT_BASE_HV_MONITOR_VALUE = moniBEShort(halReadBaseADC());
-    if(updateTemp) { /* Update temp less frequently 'cause it's a time hog */
-      mh.DOM_MB_TEMPERATURE      = moniBEShort(halReadTemp());
-      last_dom_mb_temp = mh.DOM_MB_TEMPERATURE;
-    } else {
-      mh.DOM_MB_TEMPERATURE      = last_dom_mb_temp;
-    }
+    mh.DOM_MB_TEMPERATURE        = moniBEShort(temperature);
     spe                          = (ULONG)hal_FPGA_TEST_get_spe_rate();
     mpe                          = (ULONG)hal_FPGA_TEST_get_mpe_rate();
     mh.SPE_RATE                  = moniBELong(spe);

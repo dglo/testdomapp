@@ -1,43 +1,25 @@
 /*
- * @mainpage domapp socket based simulation program
- * @author Chuck McParland, with mods by Jacobsen
+ * @mainpage domapp - DOM Application program
+ * @author Chuck McParland originally, now updated and maintained by 
+ * J. Jacobsen (jacobsen@npxdesigns.com)
  * Based on original code by mcp.
  *
- * $Date: 2004-05-12 19:06:52 $
+ * $Date: 2004-05-19 05:19:21 $
  *
- * @section ration Rationale
- *
- * This code provides low level initialization and communications
- * code that allow execution of the DOM application within the 
- * either the Linux or Cygwin environment.  This particular verstion
- * uses stdin and stdout to perform all message passing communications.
- * It is intended to be run by the simboot program and, therefore, will
- * have these file descriptors mapped to a pre-established IP socket.
- *
- * @section details Implementation details
- *
- * This implementation uses the standard ipcmsg messaging package to
- * simulate the use of shared message queues between the various threads
- * of the DOM application.  This facility will be replaced by a similar
- * mechanism native to the DOM MB operating system (Nucleus).
- *
- * @subsection lang Language
- *
- * For DOM application compatibility, this code is written in C. 
  *
  */
 
 /**
- * @file domappFile.c
+ * @file domapp.c
  * 
  * This file contains low level initialization routines used to
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.25 $
+ * $Revision: 1.27 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-05-12 19:06:52 $
+ * $Date: 2004-05-19 05:19:21 $
 */
 
 #include <unistd.h> /* Needed for read/write */
@@ -231,7 +213,6 @@ int main(void) {
     dom_output_file = STDOUT;
 
     t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock();
-    unsigned long long lastTempTime = 0;
 
     /* Set input to non-blocking mode -- NOT IMPLEMENTED ON EPXA10 */
     //fcntl_flags = fcntl(dom_input_file, F_GETFL, 0);
@@ -253,6 +234,8 @@ int main(void) {
     expControlInit();
     dataAccessInit();
 
+    halStartReadTemp();
+    USHORT temperature = 0; // Chilly
 
     for (;;) {
       
@@ -263,18 +246,17 @@ int main(void) {
       long long dt  = tcur-t_hw_last;
 
       if(moni_hardware_interval > 0) {
-	if(dt < 0 /* overflow case (should be RARE)  */
+	if(dt < 0  /* overflow case (should be RARE)  */
 	   || dt > moni_hardware_interval) {
 
-	  /* Update temperature only once every TEMP_REFRESH_IVAL clock ticks,
-	     cause halReadTemp() is a dog. */
-	  int doTemp = 0;
-	  if(lastTempTime == 0 || (tcur - lastTempTime) > TEMP_REFRESH_IVAL) {
-	    doTemp = 1;
-	    lastTempTime = tcur;
+	  /* Update temperature if it's done */
+	  if(halReadTempDone()) {
+	    temperature = halFinishReadTemp();
+	    halStartReadTemp();
 	  }
-
-	  moniInsertHdwrStateMessage(tcur, doTemp);
+	  //temperature = halReadTemp();
+	  //temperature = 666;
+	  moniInsertHdwrStateMessage(tcur, temperature);
 
 #ifdef DEBUGMONI
           mprintf("MONI "

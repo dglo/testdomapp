@@ -3,7 +3,7 @@
  * Part of dataAccess thread
  * John Jacobsen, JJ IT Svcs, for LBNL
  * May, 2003
- * $Id: moniDataAccess.h,v 1.17 2004-05-12 19:06:51 jacobsen Exp $
+ * $Id: moniDataAccess.h,v 1.18 2004-05-18 21:36:40 jacobsen Exp $
  */
 
 #ifndef _MONI_DATA_ACCESS_
@@ -150,7 +150,7 @@ void moniSetIvals(unsigned long long mhi, unsigned long long mci);
 
 /* The following functions use moniInsertRec to insert data */
 
-void moniInsertHdwrStateMessage(unsigned long long time, int updateTemp);
+void moniInsertHdwrStateMessage(unsigned long long time, USHORT temperature);
 /* Timestamped rec. of all DACs, ADCs, etc. hardware info on board */
 
 void moniInsertConfigStateMessage(unsigned long long time);

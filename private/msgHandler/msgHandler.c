@@ -10,6 +10,8 @@
 //#include "domapp_common/DOMtypes.h"
 #include "message/message.h"
 #include "msgHandler/msgHandler.h"
+#include "slowControl/domSControl.h"
+#include "expControl/expControl.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
@@ -76,17 +78,8 @@ void msgHandler(MESSAGE_STRUCT *M)
 	switch ( Message_getType(M) ) {
 
 	    case DOM_SLOW_CONTROL:
-		/* push message on ControlStack */
-		if(TRUE) {
-		    SlowCntStackOvfl++;
-		    msgReject=TRUE;
-		    msgHand.msgProcessingErr++;
-		    strcpy(msgHand.lastErrorStr,
-			MSGHAND_SERVER_STACK_FULL);
-		    msgHand.lastErrorID=MSGHAND_server_stack_full;
-		    Message_setStatus(M,
-			SERVER_STACK_FULL|SEVERE_ERROR);
-		}
+		/* forward to slow control */
+		domSControl(M);
 		break;
 
 	    /* case DATA_ACCESS: */
@@ -104,17 +97,8 @@ void msgHandler(MESSAGE_STRUCT *M)
 		break; */
 
 	    case EXPERIMENT_CONTROL:
-	        /* push message on LookBackStack */
-	        if(TRUE) {
-		    ExpCntStackOvfl++;
-		    msgReject=TRUE;
-		    msgHand.msgProcessingErr++;
-		    strcpy(msgHand.lastErrorStr,
-			MSGHAND_SERVER_STACK_FULL);
-		    msgHand.lastErrorID=MSGHAND_server_stack_full;
-		    Message_setStatus(M,
-			SERVER_STACK_FULL|SEVERE_ERROR);
-		}
+		/* forward to expControl */
+		expControl(M);
 		break;
 
 	    case TEST_MANAGER:

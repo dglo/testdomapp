@@ -3,7 +3,7 @@
  * @author McP, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2003-05-05 06:47:14 $
+ * $Date: 2003-05-06 00:48:43 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.1 $
+ * $Revision: 1.2 $
  * $Author: mcp $
  * Based on original code by Chuck McParland
- * $Date: 2003-05-05 06:47:14 $
+ * $Date: 2003-05-06 00:48:43 $
 */
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -67,9 +67,9 @@
 #include "message/message.h"
 #include "message/messageBuffers.h"
 #include "message/genericMsgSendRecv.h"	
-//#include "expControl/expControl.h"
+#include "expControl/expControl.h"
 //#include "dataAccess/dataAccess.h"
-//#include "slowControl/domSControl.h"
+#include "slowControl/domSControl.h"
 
 /** fds index for stdin, stdout */
 #define STDIN 0
@@ -216,6 +216,8 @@ void main(void) {
 
     /* manually init all the domapp components */
     msgHandlerInit();
+    domSControlInit();
+    expControlInit();
 
     //fprintf(log, "domapp: Ready to go\n");
 

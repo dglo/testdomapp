@@ -3,7 +3,7 @@
  * Routines to store and fetch monitoring data from a circular buffer
  * John Jacobsen, JJ IT Svcs, for LBNL/IceCube
  * May, 2003
- * $Id: moniDataAccess.c,v 1.24 2004-07-20 18:20:33 jacobsen Exp $
+ * $Id: moniDataAccess.c,v 1.21 2004-05-20 15:56:20 jacobsen Exp $
  * CURRENTLY NOT THREAD SAFE -- need to implement moni[Un]LockWriteIndex
  */
 
@@ -281,17 +281,20 @@ void moniInsertConfigStateMessage(unsigned long long time) {
     mc.spare0               = 0;
     mc.hw_config_len        = moniBEShort(18);
 
+    //memcpy(mc.dom_mb_id,halGetBoardID(),6); 
     boardID = halGetBoardIDRaw();
     memcpy(mc.dom_mb_id, (UBYTE *) &boardID, 6);
-    
+
     mc.spare1               = moniBEShort(0); 
 
+    //memcpy(mc.hw_base_id,"UNKNOWN!",8);
     HVID = halHVSerialRaw();
     memcpy(mc.hw_base_id, (UBYTE *) &HVID, 8);
-        
-    mc.fpga_build_num       = moniBEShort(hal_FPGA_query_build());
+    
+ /* mc.fpga_build_num       = hal_FPGA_query_build(); <-- CRASHES REV 2 BOARDS!! */
+    mc.fpga_build_num       = moniBEShort(0);
     mc.sw_config_len        = moniBEShort(10);
-    mc.dom_mb_sw_build_num  = moniBEShort(ICESOFT_BUILD); /* From hal/dom-ws */
+    mc.dom_mb_sw_build_num  = moniBEShort(0); /* How to get this? */
     mc.msg_hdlr_major       = MSGHANDLER_MAJOR_VERSION;
     mc.msg_hdlr_minor       = MSGHANDLER_MINOR_VERSION;
     mc.exp_ctrl_major       = EXP_MAJOR_VERSION;

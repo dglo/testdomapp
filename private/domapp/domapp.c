@@ -3,7 +3,7 @@
  * @author McP, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2003-05-06 00:48:43 $
+ * $Date: 2003-05-14 01:28:35 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.2 $
+ * $Revision: 1.4 $
  * $Author: mcp $
  * Based on original code by Chuck McParland
- * $Date: 2003-05-06 00:48:43 $
+ * $Date: 2003-05-14 01:28:35 $
 */
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -53,6 +53,8 @@
 #include <fcntl.h>
 /* JEJ */
 #include <errno.h> /** For errno, on open */
+#else
+#include <unistd.h> /* Needed for read/write */
 #endif
 
 /** project include files */
@@ -60,6 +62,10 @@
 #include "hal/DOM_MB_hal_simul.h"
 #else 
 #endif
+
+
+/* DOMtypes.h needed to build under linux */
+#include "domapp_common/DOMtypes.h"
 
 #include "domapp_common/packetFormatInfo.h"
 #include "domapp_common/messageAPIstatus.h"
@@ -97,6 +103,7 @@ int dom_output_file;
 /** routines to handle send and receive of messages through stdin/out */
 int recvMsg(void);
 int sendMsg(void);
+int readmsg(int, MESSAGE_STRUCT *, char *);
 
 /** packet driver counters, etc. For compatibility purposes only */
 ULONG PKTrecv;
@@ -128,11 +135,11 @@ MESSAGE_STRUCT *messageBuffer;
  * @see domappFile.c for file based version of same program.
 */
 
-static FILE *log;
 
 #define pfprintf(...) /* makes it easier to comment out, 
 			 when you want less verbose messages */
 #if defined (CYGWIN) || (LINUX)
+static FILE *log;
 volatile sig_atomic_t fatal_error_in_progress = 0;
 void cleanup_exit(int);
 #endif
@@ -140,7 +147,7 @@ void cleanup_exit(int);
 #if defined  (CYGWIN) || (LINUX)
 int main(int argc, char* argv[]) {
 #else
-void main(void) {
+int main(void) {
 #endif
 
     /** storage */
@@ -148,7 +155,7 @@ void main(void) {
 #define DA_MAX_LOGNUM 6
     char id6dig[DA_MAX_LOGNUM+1];
     char logname[] = "dom_log_XXXXXX.txt"; /* Replace Xs w/ low bits of DOM ID */
-
+    
     int i;
     int j;
     int k;
@@ -159,6 +166,7 @@ void main(void) {
     int port;
     int nready;
     int dom_simulation_file; 
+    UBYTE b;
 
 #if defined (CYGWIN) || (LINUX)
     fd_set fds;
@@ -207,9 +215,10 @@ void main(void) {
     signal(SIGINT, &cleanup_exit);
     signal(SIGTERM, &cleanup_exit);
 
+#endif
+
     dom_input_file  = STDIN;
     dom_output_file = STDOUT;
-#endif
 
     /* init messageBuffers */
     messageBuffers_init();
@@ -219,32 +228,51 @@ void main(void) {
     domSControlInit();
     expControlInit();
 
-    //fprintf(log, "domapp: Ready to go\n");
-
+    //printf("domapp: Readdy to go\r\n");
+    
+    //write(dom_output_file, "domapp starting up.", strlen("domapp starting up."));
+    //for (;;) {
+	//read(dom_input_file, &b, 1);
+	//printf ("received: %x, %c\r\n", b, b);
+    //}
     for (;;) {
 
         /* Flush log file out, each loop */
         //fprintf(log, "About to read...\n");
         //fflush(log);
       
-        if ((status = recvMsg()) <= 0) {
+        //printf("domapp: Readdy to recvMsg\r\n");
+     
+        status = recvMsg();
+
+        if (status <= 0) {
         /* error reported from receive, or EOF */
 	    //fprintf(log, "domapp: Error or EOF from recvMsg() (%d).\n",
 		    //status);
   	    //fflush(log);
+#if defined (CYGWIN) || (LINUX)
 	    return COM_ERROR;
+#else
+	    //printf(" recv4Msg returnned with error.\r\n");
+	    return;
+#endif
 	} else {
 	    //fprintf(log, "domapp: Got a message.\n");
 	}
 	
 	//handle the request
+    	//printf("received message.");
 	msgHandler(messageBuffer);
       
 	if ((status = sendMsg()) < 0) {
 	  //fprintf(log,"domapp: problem on send: status %d.\n",status);
 	  /* error reported from send */
 	  //fflush(log);
+#if defined (CYGWIN) || (LINUX)
 	  return COM_ERROR;
+#else
+	  return;
+#endif
 	}
     }
 
@@ -252,7 +280,13 @@ void main(void) {
     //errorMsg="domapp: lost socket connection";
     //fprintf(log,"%s\n\r",errorMsg);
     //fclose(log);
+
+#if defined (CYGWIN) || (LINUX)
     return 0;
+#else
+    return;
+#endif
+
 }
 
 #if defined (CYGWIN) || (LINUX)
@@ -281,7 +315,9 @@ void cleanup_exit(int sig) {
 }
 #endif
 
-/**
+
+
+/** recvMsg(): 
  * receive a complete message, place it into a message buffer
  * and queue it up to the msgHandler for processing.
  *
@@ -290,9 +326,7 @@ void cleanup_exit(int sig) {
  *
  * @see sendMsg() complimentary function.
 */
-
-#if defined (CYGWIN) || (LINUX)
-int recvMsg() {
+int recvMsg(void) {
   /** length of entire message to be received */
   long msgLength;
   /** number of bytes to be received for a given msg part */
@@ -304,8 +338,12 @@ int recvMsg() {
   /* misc buffer pointer */
   UBYTE *buffer_p;
   
+  //printf("in rcvMsg: ready to allocate buffer\r\n");
   /* receive the message header */
   messageBuffer = messageBuffers_allocate();
+
+  //printf("in rcvMsg: buffer allocated %x\r\n", messageBuffer);
+  
   if (messageBuffer == NULL) {
     return ERROR;
   }
@@ -313,53 +351,90 @@ int recvMsg() {
   /* save data buffer address for  this message buffer */
   dataBuffer_p = Message_getData(messageBuffer);
 
-  fprintf(log, "domapp: about to gmsr_recvMessageGeneric.\n");
-
+  //printf("in rcvMsg: dataBuffer: %x\r\n", dataBuffer_p);
+  //fprintf(log, "domapp: about to gmsr_recvMessageGeneric.\n");
+  
   /* Read in the whole message, now using generic functions */
+#if defined (CYGWIN) || (LINUX)
   sts = gmsr_recvMessageGeneric(dom_input_file, messageBuffer, dataBuffer_p, 0);
+#else
+  sts = readmsg(dom_input_file, messageBuffer, dataBuffer_p);
+#endif
   if(sts <= 0) {
     /* patch up the message buffer and release it */
     Message_setData(messageBuffer, dataBuffer_p, MAXDATA_VALUE);
     messageBuffers_release(messageBuffer);
-    fprintf(log, "domapp: got sts %d in recv\n",sts);
+    //fprintf(log, "domapp: got sts %d in recv\n",sts);
     return sts == 0 ? COM_EOF : sts;
   } 
   
   return 1;
 }
 
-/**
+/** sendMsg(): 
  * Check msgHandler message queue for outgoing messages. If
  * one is present, assemble message and send it.
+ * Should work for LINUX, CYGWIN, or DOM Main Board Hardware (JEJ).
  *
  * @return 0  no errors, otherwise return value of low level 
  * 	communications routine.
  *
  * @see recvMsg()
 */
-
-
 int sendMsg() {
   int sts;
   long sendLen;
   
   //fprintf(log, "domapp: About to Message_receive_nonblock().\n");
+  //fprintf(log, "domapp: have a message to send (messageBuffer == %p)\n",
+  ////messageBuffer);
 
-    
-    fprintf(log, "domapp: have a message to send (messageBuffer == %p)\n",
-    	    messageBuffer);
+  /* Send out the message using generic function -- works with
+     CYGWIN, LINUX, or DOM MB hardware too!  (Just calls write() twice) */
+  sts = gmsr_sendMessageGeneric(dom_output_file, messageBuffer);
 
-    /* Send out the message using generic function */
-    sts = gmsr_sendMessageGeneric(dom_output_file, messageBuffer);
-
-    /* always delete the message buffer-even if there was a com error */
-    messageBuffers_release(messageBuffer);
-    
-    fprintf(log, "domapp: Send status was %d.\n",sts);
-    
-    if(sts < 0) {
-      return sts;
-    }
+  /* always delete the message buffer-even if there was a com error */
+  messageBuffers_release(messageBuffer);
+  
+  //fprintf(log, "domapp: Send status was %d.\n",sts);
+  
+  if(sts < 0) {
+    return sts;
+  }
   return 0;
 }
-#endif
+ 
+ 
+/** readmsg(): 
+    Jacobsen 2003.05.05 - Routine for MB to recv data using newlib's read().
+    Simply reads the header and then the appropriate number of payload bytes.
+    Assumes space has been allocated for recvBuffer_p and recvData. 
+    Assumes blocking semantics for read. */
+
+int readmsg(int fd, MESSAGE_STRUCT *recvBuffer_p, char *recvData) {
+  
+  int i;
+  int payloadLength;
+  char *buffer_p = (char *)recvBuffer_p;
+
+  //printf("in readmsg:\r\n");
+  for(i =0; i<MSG_HDR_LEN; i++) {
+    read(fd, (char *) buffer_p, 1);
+    buffer_p++;
+  }
+
+  //printf("in readmsg: sts: %d\r\n",sts);
+
+  payloadLength = Message_dataLen(recvBuffer_p);
+  //printf("in readmsg: payloadLength: %d\r\n", payloadLength);
+  if(payloadLength > MAXDATA_VALUE || payloadLength <= 0) return COM_ERROR;
+
+  for(i = 0; i < payloadLength; i++) {
+    read(fd, recvData, 1);
+    recvData++;
+  }
+
+  return payloadLength; /* Keep same default return value (# of payload bytes) 
+			   as gmsr_recvMessageGeneric */
+
+}

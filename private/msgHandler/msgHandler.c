@@ -6,8 +6,15 @@
 // message back to sender ( marked undeliverable)
 */ 
 
-#include "hal/DOM_MB_hal_simul.h"
+#include "hal/DOM_MB_types.h"
+#include "hal/DOM_MB_hal.h"
+#include <string.h>
+
+/* DOMtypes.h needed for Linux -- deal w/ using ifdefs? */
 //#include "domapp_common/DOMtypes.h"
+#define TRUE 1
+#define FALSE 0
+
 #include "message/message.h"
 #include "msgHandler/msgHandler.h"
 #include "slowControl/domSControl.h"
@@ -228,8 +235,9 @@ void msgHandler(MESSAGE_STRUCT *M)
 			break;
 		    case MSGHAND_GET_DOM_NAME:
 			/* get given name of this DOM hardware */
-			strcpy(data,halGetBoardName());
-			Message_setDataLen(M,strlen(halGetBoardName()));
+			/* for now, we just return the ID */
+			strcpy(data,halGetBoardID());
+			Message_setDataLen(M,strlen(halGetBoardID()));
 			Message_setStatus(M,SUCCESS);
 			break;
 		    case MSGHAND_GET_ATWD_ID:

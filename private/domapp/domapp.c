@@ -4,7 +4,7 @@
  * J. Jacobsen (jacobsen@npxdesigns.com)
  * Based on original code by mcp.
  *
- * $Date: 2004-05-19 05:19:21 $
+ * $Date: 2004-07-14 22:57:47 $
  *
  *
  */
@@ -16,10 +16,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.27 $
+ * $Revision: 1.28 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-05-19 05:19:21 $
+ * $Date: 2004-07-14 22:57:47 $
 */
 
 #include <unistd.h> /* Needed for read/write */
@@ -41,6 +41,7 @@
 // DOM-related includes
 #include "hal/DOM_MB_types.h"
 #include "hal/DOM_MB_hal.h"
+#include "hal/DOM_MB_pld.h"
 #include "domapp_common/DOMstateInfo.h"
 #include "message/message.h"
 #include "message/messageBuffers.h"
@@ -234,6 +235,8 @@ int main(void) {
     expControlInit();
     dataAccessInit();
 
+    halEnableBarometer(); /* Increases power consumption slightly but 
+			     enables power to be read out */
     halStartReadTemp();
     USHORT temperature = 0; // Chilly
 

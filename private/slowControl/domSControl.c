@@ -23,6 +23,7 @@ Jan. 14 '04 Jacobsen -- add monitoring actions for state change operations
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
+#include "slowControl/domSControlRoutines.h"
 #include "slowControl/DSCmessageAPIstatus.h"
 #include "domapp_common/DOMstateInfo.h"
 

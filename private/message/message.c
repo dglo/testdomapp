@@ -136,9 +136,8 @@ int Message_send(MESSAGE_STRUCT *msg,
 	if(msgQueueList[q].nextElemPut >= MESSAGE_QUEUE_SIZE) {
 	    msgQueueList[q].nextElemPut = 0;
 	}
-
-	return MEM_SUCCESS;
     }
+    return MEM_SUCCESS;
 }
 
 int Message_forward(MESSAGE_STRUCT *msgStruct,

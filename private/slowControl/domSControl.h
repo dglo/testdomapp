@@ -20,7 +20,7 @@
 #define DSC_ERROR_STR_LEN 80
 
 /* default maximums for PMT HV anode and dynode */
-#define PMT_HV_DEFAULT_MAX 600
+#define PMT_HV_DEFAULT_MAX 4095
 
 /* Data Access error strings */
 /* for COMMON_No_Errors */

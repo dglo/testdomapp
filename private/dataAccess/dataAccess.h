@@ -7,13 +7,14 @@
 
 /* Data Access version info. */
 #define DAC_MAJOR_VERSION 10
-#define DAC_MINOR_VERSION 1
+#define DAC_MINOR_VERSION 2
 /* major version 10	10 May 2003
 	beginning of icecube domapp code chain.  Version 10 implemented
 	as single thread test version.
 */
 /* minor version 1	5 July 2003
 	added monitoring code infrastructure
+   minor version 2     14 Jan. 2004 updated moni infrastructure JJ
 */
 
 /* maximum length of Data Access last error string */
@@ -26,6 +27,10 @@
 #define DAC_ERS_BAD_MSG_SUBTYPE "DAC: Bad msg subtype."
 /* for DAC_Data_Overrun */
 #define DAC_DATA_OVERRUN "DAC: Readout buffer data overrun."
+/* JEJ for monitoring not initialized */
+#define DAC_MONI_NOT_INIT "DAC: Monitoring not initialized"
+#define DAC_MONI_OVERFLOW "DAC: Monitoring buffer overflowed"
+#define DAC_MONI_BADSTAT  "DAC: Monitoring: bad status"
 
 /* define ALLOCATE_READOUT_BUFFER if you want dataAccess
    to allocate memory to be used for FPGA simulation.

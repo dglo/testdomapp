@@ -7,6 +7,7 @@ Description:
 	service thread.
 Last Modification:
 */
+#include <stddef.h>
 
 #if defined (CYGWIN) || defined(LINUX)
 #include <stdio.h>
@@ -387,6 +388,17 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
     }
     hal_FPGA_TEST_trigger_forced(trigger_mask);
 
+    /* poison the atwd and fadc data to make sure we're reading
+     * the real thing!
+     *
+     * this is for testing only!
+     */
+    if (Ch0Data!=NULL) memset(Ch0Data, 0xaa, 128*sizeof(short));
+    if (Ch1Data!=NULL) memset(Ch1Data, 0xbb, 128*sizeof(short));
+    if (Ch2Data!=NULL) memset(Ch2Data, 0xcc, 128*sizeof(short));
+    if (Ch3Data!=NULL) memset(Ch3Data, 0xdd, 128*sizeof(short));
+    if (FADC!=NULL) memset(FADC, 0xee, FlashADCLen*sizeof(short));
+
     for(i = 0; i < ATWD_TIMEOUT_COUNT; i++) {
 	if(hal_FPGA_TEST_readout_done(trigger_mask)) {
 	    //fprintf(stderr,"readout ready\r\n");
@@ -394,12 +406,12 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	    if(FPGA_ATWD_select == 0) {
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, 0, 0, 0, 0, 128, 
-		    FADC, (int)FlashADCLen, FPGA_ATWD_select);
+		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
 	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, 128, 
-		    FADC, (int)FlashADCLen, FPGA_ATWD_select);
+		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    return TRUE;
 	}
@@ -430,12 +442,12 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	    if(FPGA_ATWD_select == 0) {
 	    	hal_FPGA_TEST_readout(Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, 0, 0, 0, 0, 128, 
-		    FADC, (int)FlashADCLen, FPGA_ATWD_select);
+		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    else {
 	    	hal_FPGA_TEST_readout(0, 0, 0, 0, Ch0Data, Ch1Data,
 		    Ch2Data, Ch3Data, 128, 
-		    FADC, (int)FlashADCLen, FPGA_ATWD_select);
+		    FADC, (int)FlashADCLen, trigger_mask);
 	    }
 	    return TRUE;
 	}

@@ -1,9 +1,9 @@
 /*
  * @mainpage domapp socket based simulation program
- * @author McP, with mods by Jacobsen
+ * @author Chuck McParland, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2003-07-05 19:20:00 $
+ * $Date: 2004-01-14 23:26:03 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.10 $
- * $Author: mcp $
+ * $Revision: 1.18 $
+ * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2003-07-05 19:20:00 $
+ * $Date: 2004-01-14 23:26:03 $
 */
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -64,6 +64,7 @@
 #endif
 
 
+
 /* DOMtypes.h needed to build under linux */
 #include "domapp_common/DOMtypes.h"
 
@@ -76,6 +77,10 @@
 #include "expControl/expControl.h"
 //#include "dataAccess/dataAccess.h"
 #include "slowControl/domSControl.h"
+#include "dataAccess/moniDataAccess.h"
+
+/** Monitoring delay --- now set by dataAccess message */
+//#define DOMAPP_MONI_DELAY 0xA000000
 
 /** fds index for stdin, stdout */
 #define STDIN 0
@@ -90,6 +95,7 @@ int dom_output_file;
 #define ERROR -1
 #define COM_ERROR -2
 #define COM_EOF   -3
+#define COM_EAGAIN -4
 
 /** maximum values for some MESSAGE_STRUCT fields */
 #define MAX_TYPE 255
@@ -123,6 +129,9 @@ ULONG CRCproblem;
 /* single message buffer pointer to use */
 MESSAGE_STRUCT *messageBuffer;
 
+/* Monitoring buffer, static allocation: */
+UBYTE monibuf[MONI_CIRCBUF_RECS * MONI_REC_SIZE];
+
 /**
  * Main entry that starts the DOM application off.  Should
  * never return unless error encountered.
@@ -144,6 +153,8 @@ volatile sig_atomic_t fatal_error_in_progress = 0;
 void cleanup_exit(int);
 #endif
 
+
+
 #if defined  (CYGWIN) || (LINUX)
 int main(int argc, char* argv[]) {
 #else
@@ -151,7 +162,6 @@ int main(void) {
 #endif
 
     /** storage */
-    char *errorMsg;
 #define DA_MAX_LOGNUM 6
     char id6dig[DA_MAX_LOGNUM+1];
     char logname[] = "dom_log_XXXXXX.txt"; /* Replace Xs w/ low bits of DOM ID */
@@ -166,7 +176,13 @@ int main(void) {
     int port;
     int nready;
     int dom_simulation_file; 
+    long fcntl_flags;
+    int result;
+    unsigned long long t_hw_last, t_cf_last, tcur;
+    ULONG moni_hardware_interval, moni_config_interval;
+
     UBYTE b;
+    //    struct pollfd fds[1];
 
 #if defined (CYGWIN) || defined (LINUX)
     fd_set fds;
@@ -220,6 +236,12 @@ int main(void) {
     dom_input_file  = STDIN;
     dom_output_file = STDOUT;
 
+    t_hw_last = t_cf_last = moniGetTimeAsUnsigned();
+
+    /* Set input to non-blocking mode -- NOT IMPLEMENTED ON EPXA10 */
+    //fcntl_flags = fcntl(dom_input_file, F_GETFL, 0);
+    //result = fcntl(dom_input_file, F_SETFL, fcntl_flags|O_NONBLOCK);
+    
     /* init messageBuffers */
     messageBuffers_init();
     //fprintf(stderr,"domapp: Ready to go\r\n");
@@ -230,65 +252,69 @@ int main(void) {
     expControlInit();
     dataAccessInit();
 
-    //printf("domapp: Readdy to go\r\n");
-    
-    //write(dom_output_file, "domapp starting up.", strlen("domapp starting up."));
-    //for (;;) {
-	//read(dom_input_file, &b, 1);
-	//printf ("received: %x, %c\r\n", b, b);
-    //}
+    /* Start up monitoring system */
+    moniInit(monibuf, MONI_MASK);
+    moniRunTests();
+    //moniTestAllMonitorRecords();
+
     for (;;) {
-
-        /* Flush log file out, each loop */
-        //fprintf(log, "About to read...\n");
-        //fflush(log);
       
-        //printf("domapp: Readdy to recvMsg\r\n");
-     
-        status = recvMsg();
+      /* Insert periodic monitoring records */
+      tcur = moniGetTimeAsUnsigned();
 
-        if (status < 0) {
-        /* error reported from receive, or EOF */
-	    //fprintf(log, "domapp: Error or EOF from recvMsg() (%d).\n",
-		    //status);
-  	    //fflush(log);
-#if defined (CYGWIN) || defined (LINUX)
-	    return COM_ERROR;
-#else
-	    //printf(" recv4Msg returnned with error.\r\n");
-	    return;
-#endif
-	} else {
-	    //fprintf(log, "domapp: Got a message.\n");
-	}
-	
-	//handle the request
-    	//fprintf(stderr,"received message.");
-	msgHandler(messageBuffer);
+/*       if( */
+/* 	 ((tcur & 0xFF00000000) == 0xFF00000000) && ((tcur & 0xFF0000000000) == 0xFF0000000000)) { */
+/* 	moniInsertDiagnosticMessage("GOT ODD THING", tcur, 12); */
+/*       } */
       
-	if ((status = sendMsg()) < 0) {
-	  //fprintf(log,"domapp: problem on send: status %d.\n",status);
-	  /* error reported from send */
-	  //fflush(log);
-#if defined (CYGWIN) || defined (LINUX)
-	  return COM_ERROR;
-#else
-	  return;
-#endif
+      moni_hardware_interval = moniGetHdwrIval();
+      moni_config_interval   = moniGetConfIval();
+      
+      if(moni_hardware_interval > 0) {
+	if(t_hw_last > tcur /* overflow case (should be RARE)  */
+	   || (tcur-t_hw_last) > moni_hardware_interval) {
+	  //moniInsertDiagnosticMessage("MONI HARDWARE INTERVAL", tcur, 22);
+	  moniInsertHdwrStateMessage(tcur);
+	  t_hw_last = tcur;
 	}
+      }
+
+      if(moni_config_interval > 0) {
+        if(t_cf_last > tcur /* overflow case (should be RARE)  */
+           || (tcur-t_cf_last) > moni_config_interval) {
+          //moniInsertDiagnosticMessage("MONI CONFIG INTERVAL", tcur, 20);
+	  moniInsertConfigStateMessage(tcur);
+	  t_cf_last = tcur;
+	}
+      }
+
+
+      /* Get a message, if available. */
+#     if defined (CYGWIN) || defined (LINUX)
+         status = recvMsg();
+#     else
+         status = recvMsg_arm_nonblock();
+#     endif
+
+      if (status < 0) {
+	/* JJ: We used to bail out of domapp here, but now we use the
+	   opportunity to do something else, like catch up on some
+	   sleep.  Or we could, if there was some sort of CPU wait
+	   state and timer interrupt, but there isn't, yet, so we keep
+	   it hyperactive: */
+	continue;
+      }
+      
+      msgHandler(messageBuffer);
+      
+      if ((status = sendMsg()) < 0) {
+	/* error reported from send */
+	return COM_ERROR;
+      }
     }
-
-    /* this is really bad, nothing left to do but bail */
-    //errorMsg="domapp: lost socket connection";
-    //fprintf(log,"%s\n\r",errorMsg);
-    //fclose(log);
-
-#if defined (CYGWIN) || defined (LINUX)
+    
+    /* Never get here */
     return 0;
-#else
-    return;
-#endif
-
 }
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -317,7 +343,35 @@ void cleanup_exit(int sig) {
 }
 #endif
 
+ 
+int recvMsg_arm_nonblock(void) {
+  /* JEJ:
+     Non-blocking version of recvMsg.  
+     Currently not very efficient 
+        (allocate/deallocate message buffer ea. time)
+     @return negative value if error or no data.
+     @return positive value otherwise.
+  */
+  UBYTE *dataBuffer_p;
+  int   sts;
+  static int itmp=0;
 
+  /* Check for availability of data -- go back if nothing. */
+  if(! halIsInputData()) return COM_EAGAIN;
+
+  messageBuffer = messageBuffers_allocate();
+  if (messageBuffer == NULL) {
+    return ERROR;
+  }
+  dataBuffer_p = Message_getData(messageBuffer);
+  sts = readmsg(dom_input_file, messageBuffer, dataBuffer_p);
+  if(sts < 0) {
+    Message_setData(messageBuffer, dataBuffer_p, MAXDATA_VALUE);
+    messageBuffers_release(messageBuffer);
+    return sts;
+  } 
+  return 1;
+}
 
 /** recvMsg(): 
  * receive a complete message, place it into a message buffer
@@ -385,11 +439,6 @@ int recvMsg(void) {
 */
 int sendMsg() {
   int sts;
-  long sendLen;
-  
-  //fprintf(log, "domapp: About to Message_receive_nonblock().\n");
-  //fprintf(log, "domapp: have a message to send (messageBuffer == %p)\n",
-  ////messageBuffer);
 
   /* Send out the message using generic function -- works with
      CYGWIN, LINUX, or DOM MB hardware too!  (Just calls write() twice) */
@@ -397,9 +446,7 @@ int sendMsg() {
 
   /* always delete the message buffer-even if there was a com error */
   messageBuffers_release(messageBuffer);
-  
-  //fprintf(log, "domapp: Send status was %d.\n",sts);
-  
+
   if(sts < 0) {
     return sts;
   }
@@ -421,7 +468,8 @@ int readmsg(int fd, MESSAGE_STRUCT *recvBuffer_p, char *recvData) {
 
   //printf("in readmsg:\r\n");
   for(i =0; i<MSG_HDR_LEN; i++) {
-    read(fd, (char *) buffer_p, 1);
+    while(read(fd, (char *) buffer_p, 1) != 1) {}; /* simulate blocking */
+    //read(fd, (char *) buffer_p, 1);
     buffer_p++;
   }
 
@@ -434,7 +482,8 @@ int readmsg(int fd, MESSAGE_STRUCT *recvBuffer_p, char *recvData) {
   if(payloadLength == 0) return payloadLength;
 
   for(i = 0; i < payloadLength; i++) {
-    read(fd, recvData, 1);
+    while(read(fd, recvData, 1) != 1) {}; /* simulate blocking */
+    //read(fd, recvData, 1);
     recvData++;
   }
 

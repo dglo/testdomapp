@@ -9,6 +9,10 @@
 // March 30, 1999
 // Chuck McParland
 
+/* 
+   Mods by J. Jacobsen 2004 to add messages to retrieve 
+   monitoring messages from domapp.
+*/
 
 
 // message API subtype values. This field is not
@@ -18,11 +22,18 @@
 // will ensue.  
 //
 // Note 255 is the maximum value available for this field. 
-#define	DATA_ACC_DATA_AVAIL 10
-#define	DATA_ACC_GET_DATA 11
+#define	DATA_ACC_DATA_AVAIL        10
+#define	DATA_ACC_GET_DATA          11
+#define DATA_ACC_GET_NEXT_MONI_REC 12
+#define DATA_ACC_SET_MONI_IVAL     13 /* Set monitoring interval for 
+					 hardware and configuration snapshot
+					 records */
 
 // define service specific error values
-#define DSC_Data_Overrun 4
+#define DAC_Data_Overrun  4
+#define DAC_Moni_Not_Init 5
+#define DAC_Moni_Overrun  6
+#define DAC_Moni_Badstat  7
 
 /* These are Data Access specific return message
    formats and values.  In most cases, they are formatted
@@ -51,6 +62,30 @@ Returned values in data portion of message:
 	data buffer, if available
 Size of returned values in data portion:
 	data length encoded in message header */
+
+/*
+ 
+Response to:
+        subType: DATA_ACC_GET_NEXT_MONI_REC
+Passed values:
+        none
+Returned values in data portion of message:
+        BOOLEAN dataAvailable.  If 0, nothing else will be in message.  
+	If 1, the rest of the message contains the monitoring record.
+*/
+
+
+/*
+
+Response to:
+        subType: DATA_ACC_SET_MONI_IVAL
+Passed values:
+        ULONG hware_interval
+        ULONG config_interval
+Returned values in data portion of message:
+        none 
+
+*/
 
 #endif
 

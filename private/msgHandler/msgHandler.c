@@ -22,6 +22,7 @@ message back to sender ( marked undeliverable)
 #include "msgHandler/msgHandler.h"
 #include "slowControl/domSControl.h"
 #include "expControl/expControl.h"
+#include "dataAccess/moniDataAccess.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "domapp_common/commonServices.h"
 #include "domapp_common/commonMessageAPIstatus.h"
@@ -54,6 +55,8 @@ extern	ULONG tooMuchData;
 extern	ULONG IDMismatch;
 extern  ULONG CRCproblem;
 
+
+static long long time = 0;
 	
 /* struct that contains common service info for
 	this service. */
@@ -74,6 +77,19 @@ void msgHandlerInit(void) {
     //FPGAPLDapi_init();
 } 
 
+
+int dom_strlen(char *s) {
+  /* JEJ: somewhat dumb design cause it won't handle improperly terminated strings very well */
+  int i;
+  i=0;
+  while(1) {
+    if(s[i] == '\0') {
+      return i;
+    }
+    i++;
+  }
+}
+
 void msgHandler(MESSAGE_STRUCT *M)
 {
 
@@ -82,6 +98,7 @@ void msgHandler(MESSAGE_STRUCT *M)
 	UBYTE *tmpPtr;
 	int tmpInt;
 	int i;
+	static int imsgs=0;
 
 	/* preset the msgReject flag */
 	msgReject=FALSE;
@@ -158,7 +175,7 @@ void msgHandler(MESSAGE_STRUCT *M)
 		    case GET_LAST_ERROR_STR:
 			/* get error string for last error encountered */
 			strcpy(data,msgHand.lastErrorStr);
-			Message_setDataLen(M,strlen(msgHand.lastErrorStr));
+			Message_setDataLen(M,strlen(msgHand.lastErrorStr)); 
 			Message_setStatus(M,SUCCESS);
 			break;
 		    case CLEAR_LAST_ERROR:

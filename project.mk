@@ -15,5 +15,3 @@ endif
 ifeq ("cygwin-x86","$(strip $(PLATFORM))")
   USES_TOOLS   += cygipc
 endif
-
-include ../tools/resources/standard.mk

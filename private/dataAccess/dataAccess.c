@@ -77,6 +77,7 @@ void dataAccessInit(void) {
 
 /* data access  Entry Point */
 void dataAccess(MESSAGE_STRUCT *M) {
+    char * idptr;
     UBYTE *data;
     int tmpInt;
     //UBYTE tmpByte;
@@ -87,7 +88,8 @@ void dataAccess(MESSAGE_STRUCT *M) {
     struct moniRec aMoniRec;
     int total_moni_len, moniBytes, len;
     int ichip, ich;
-    
+    int config, valid; /* For hal_FB_enable */
+    int wasEnabled;
     /* get address of data portion. */
     /* Receiver ALWAYS links a message */
     /* to a valid data buffer-even */ 
@@ -376,7 +378,35 @@ void dataAccess(MESSAGE_STRUCT *M) {
       Message_setDataLen(M, 1);
       Message_setStatus(M, SUCCESS);
       break;
-      
+
+    case DATA_ACC_GET_FB_SERIAL:
+      wasEnabled = hal_FB_isEnabled();
+      Message_setDataLen(M, 0);
+      if(!wasEnabled) {
+	if(hal_FB_enable(&config, &valid)) {
+	  datacs.lastErrorID = DAC_Cant_Enable_FB;
+	  strcpy(datacs.lastErrorStr, DAC_CANT_ENABLE_FB);
+	  datacs.lastErrorSeverity = WARNING_ERROR;
+	  Message_setStatus(M, WARNING_ERROR);
+	  hal_FB_disable();
+	  break;
+	}
+      }
+      if(hal_FB_get_serial(&idptr)) {
+	datacs.lastErrorID = DAC_Cant_Get_FB_Serial;
+	strcpy(datacs.lastErrorStr, DAC_CANT_GET_FB_SERIAL);
+	datacs.lastErrorSeverity = WARNING_ERROR;
+	Message_setStatus(M, WARNING_ERROR);
+	if(!wasEnabled) hal_FB_disable();
+	break;
+      } else {
+	memcpy(data, idptr, strlen(idptr));
+	Message_setDataLen(M, strlen(idptr));
+      }
+      if(!wasEnabled) hal_FB_disable();
+      Message_setStatus(M, SUCCESS);
+      break;
+
     default:
       datacs.msgRefused++;
       strcpy(datacs.lastErrorStr, DAC_ERS_BAD_MSG_SUBTYPE);

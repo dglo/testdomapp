@@ -30,6 +30,8 @@ Last Modification:
 extern void formatLong(ULONG value, UBYTE *buf);
 extern BOOLEAN beginRun(void);
 extern BOOLEAN endRun(void);
+extern BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHORT rate);
+extern BOOLEAN endFBRun(void);
 extern BOOLEAN forceRunReset(void);
 
 /* local functions, data */
@@ -173,7 +175,7 @@ void expControlInit(void) {
 }      
 
 void expControl(MESSAGE_STRUCT *M) {
-
+    USHORT bright=0, window=0, delay=0, mask=0, rate=0;
     UBYTE *data;
     UBYTE *tmpPtr;
     
@@ -320,13 +322,33 @@ void expControl(MESSAGE_STRUCT *M) {
 	expctl.lastErrorSeverity=SEVERE_ERROR;
 	Message_setStatus(M,SERVICE_SPECIFIC_ERROR|
 			  SEVERE_ERROR);
-      }
-      else {
+      } else {
 	Message_setStatus(M,SUCCESS);
       }
       Message_setDataLen(M,0);
       break;
       
+    case EXPCONTROL_BEGIN_FB_RUN:
+      tmpPtr = data;
+      bright = unformatShort(&data[0]);
+      window = unformatShort(&data[2]);
+      delay  = unformatShort(&data[4]);
+      mask   = unformatShort(&data[6]);
+      rate   = unformatShort(&data[8]);
+      if (!beginFBRun(bright, window, delay, mask, rate)) {
+        expctl.msgProcessingErr++;
+        strcpy(expctl.lastErrorStr,EXP_CANNOT_BEGIN_FB_RUN);
+        expctl.lastErrorID=EXP_Cannot_Begin_FB_Run;
+        expctl.lastErrorSeverity=SEVERE_ERROR;
+        Message_setStatus(M,SERVICE_SPECIFIC_ERROR|
+                          SEVERE_ERROR);
+      }
+      else {
+        Message_setStatus(M,SUCCESS);
+      }
+      Message_setDataLen(M,0);
+      break;
+
       /* end run */ 
     case EXPCONTROL_END_RUN:
       if (!endRun()) {
@@ -339,6 +361,21 @@ void expControl(MESSAGE_STRUCT *M) {
       }
       else {
 	Message_setStatus(M,SUCCESS);
+      }
+      Message_setDataLen(M,0);
+      break;
+
+    case EXPCONTROL_END_FB_RUN:
+      if (!endFBRun()) {
+        expctl.msgProcessingErr++;
+        strcpy(expctl.lastErrorStr,EXP_CANNOT_END_FB_RUN);
+        expctl.lastErrorID=EXP_Cannot_End_FB_Run;
+        expctl.lastErrorSeverity=SEVERE_ERROR;
+        Message_setStatus(M,SERVICE_SPECIFIC_ERROR|
+                          SEVERE_ERROR);
+      }
+      else {
+        Message_setStatus(M,SUCCESS);
       }
       Message_setDataLen(M,0);
       break;

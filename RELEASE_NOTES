@@ -1,0 +1,88 @@
+testdomapp Release Notes -- jacobsen@npxdesigns.com
+
+=========================================================
+testdomapp pole-fb-00
+
+- Flasher board support, trig type 2
+
+=========================================================
+testdomapp V02-00-01 2004-12-??
+
+- Implemented selective LC enable.  
+- Updated engineering format to Format 2.  
+- Added LC new state change monitoring events.
+- Added testing subdirectory with domapp_multitest.pl 
+  test script.
+
+=========================================================
+
+testdomapp V02-00-00 2004-11-20
+
+Major re-work with local coincidence, internal buffering, and
+software data compression.
+
+=========================================================
+
+testdomapp V01-08-03 7/14/2004 6:02 PM
+
+This version enables the barometer so that the pressure 
+values in monitoring records make sense.
+
+=========================================================
+
+testdomapp V01-08-02 6/17/2004 12:32 PM
+
+I increased default pmt max high voltage from 600 to 4095 
+per Kael/David Hays' request. 
+
+=========================================================
+
+testdomapp V01-08-01 6/15/2004 4:35 PM
+
+minor cleanup to deal with compilation warnings that have been 
+there for a long time
+
+=========================================================
+
+testdomapp V01-08-00 6/14/2004 3:53 PM
+
+this one has a minor bug fix which should not affect data 
+taking, as well as the addition of the ability to fetch the 
+BFD release tag using a domapp message. 
+
+=========================================================
+
+testdomapp V01-07-00 5/12/2004 2:09 PM
+
+1) The units for the monitoring intervals have changed from 
+DOM clock ticks to SECONDS.
+
+2) The minimum interval is ONE SECOND (or 0).
+
+3) Although the temperature appears once per hardware 
+monitoring record, the actual temperature value can change 
+at most once per 10 seconds.  This is to avoid delays in 
+collecting engineering events until domapp is multi-threaded 
+(because the temperature readout takes so much time).
+
+** I believe (1) and (2) require changes to all your 
+testdaq-control XML steering files **
+
+Monitoring intervals can still be set to 0; this disables 
+the periodic generation of that type of monitoring event. 
+
+=========================================================
+
+testdomapp V01-06-01 4/29/2004 8:19 PM
+
+There was indeed a trickly little bug in the monitoring 
+timestamps in domapp.  I fixed it, tested it, [...]
+
+V01-06-01 also gets rid of the extra-long (2msec) delay 
+between triggers in DOMApp.  So if we could do another 
+DOM-MB release soon that would probably be good.
+
+=========================================================
+
+(Older versions not logged here but info available on 
+request from jacobsen@npxdesigns.com)

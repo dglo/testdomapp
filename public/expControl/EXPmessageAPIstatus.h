@@ -26,6 +26,8 @@
 #define EXPCONTROL_DO_PEDESTAL_COLLECTION 16 /* in: UL UL UL */
 #define EXPCONTROL_GET_NUM_PEDESTALS 19 /* out: UL UL UL */
 #define EXPCONTROL_GET_PEDESTAL_AVERAGES 20 /* out: UH:128*9 */
+#define EXPCONTROL_BEGIN_FB_RUN 27 /* Out: US US US US US */
+#define EXPCONTROL_END_FB_RUN   28 /* No args */
 
 /* These are Experiment Control specific return message
    formats and values.  In most cases, they are formatted
@@ -101,6 +103,8 @@
    Last Error ID for failed invocation: */
 #define	EXP_Cannot_Reset_Run_State 7
 
+#define EXP_Cannot_Begin_FB_Run 8
+#define EXP_Cannot_End_FB_Run 9
 
 /* Response to: 
 	subType: EXPCONTROL_GET_DOM_STATE

@@ -109,8 +109,6 @@ BOOLEAN getCPUEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 	USHORT *Ch2Data, USHORT *Ch3Data, USHORT *FADC);
 
-void calibrateTriggeringSpeeds(void);
-
 /** Set by initFormatEngineeringEvent: */
 /* UBYTE ATWDCh0Mask; */
 /* UBYTE ATWDCh1Mask; */
@@ -166,13 +164,93 @@ static bench_rec_t bformat, breadout, bbuffer, bstarttrig, bcompress;
 #define DOCH0
 #undef  DOCH0
 
+BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHORT rate) {
+#define MAXHVOFFADC 5
+  USHORT hvadc = halReadBaseADC();
+  if(hvadc > MAXHVOFFADC) {
+    mprintf("Can't start flasher board run: DOM HV ADC=%hu.", hvadc);
+    return FALSE;
+  }
+
+  if(DOM_state!=DOM_IDLE) {
+    mprintf("Can't start flasher board run: DOM_state=%d.", DOM_state);
+    return FALSE;
+  }
+
+  halPowerDownBase(); /* Just to be sure, turn off HV */
+
+  DOM_state = DOM_FB_RUN_IN_PROGRESS;
+  int err, config_t, valid_t;
+  err = hal_FB_enable(&config_t, &valid_t);
+  if (err != 0) {
+    switch(err) {
+    case FB_HAL_ERR_CONFIG_TIME:
+      mprintf("Error: flasherboard configuration time too long");
+      return FALSE;
+    case FB_HAL_ERR_VALID_TIME:
+      mprintf("Error: flasherboard clock validation time too long");
+      return FALSE;
+    default:
+      mprintf("Error: unknown flasherboard enable failure");
+      return FALSE;
+    }
+  }
+
+  halSelectAnalogMuxInput(DOM_HAL_MUX_FLASHER_LED_CURRENT);  
+  hal_FB_set_brightness((UBYTE) bright);
+  hal_FB_set_pulse_width((UBYTE) window);
+  hal_FB_enable_LEDs(mask);
+
+  /* Find first LED for MUXer */
+  int iled;
+  UBYTE firstled=0;
+#define N_LEDS 12
+  for(iled = 0; iled < N_LEDS; iled++) {
+    if((mask >> iled) & 1) {
+      firstled = iled;
+      break;
+    }
+  }
+
+  hal_FB_select_mux_input(DOM_FB_MUX_LED_1 + firstled);  
+  hal_FB_set_rate(rate);
+
+  /* Convert launch delay from ns to FPGA units */
+  int delay_i = (delay / 25) - 2;
+  delay_i = (delay_i > 0) ? delay_i : 0;
+  hal_FPGA_TEST_set_atwd_LED_delay(delay_i); 
+
+  hal_FPGA_TEST_start_FB_flashing();
+
+  mprintf("Started flasher board run!!! bright=%hu window=%hu delay=%hu mask=%hu rate=%hu",
+	  bright, window, delay, mask, rate);
+  nDOMRunTriggers = 0;
+  startLBMTriggers(); /* Triggers can start happening NOW */
+
+  return TRUE;
+}
+
+BOOLEAN endFBRun() {
+  if(DOM_state!=DOM_FB_RUN_IN_PROGRESS) {
+    mprintf("Can't stop flasher board run: DOM_state=%d.", DOM_state);
+    return FALSE;
+  }
+  hal_FPGA_TEST_stop_FB_flashing();
+  hal_FB_set_brightness(0);
+  hal_FB_disable();
+  DOM_state = DOM_IDLE;
+  mprintf("Stopped flasher board run.");
+  return TRUE;
+}
+
+inline BOOLEAN FBRunIsInProgress(void) { return DOM_state==DOM_FB_RUN_IN_PROGRESS; }
+
 BOOLEAN beginRun() {
   nDOMRunTriggers = 0;
   if(DOM_state!=DOM_IDLE) {
     return FALSE;
   }
   else {
-    //calibrateTriggeringSpeeds();
     DOM_state=DOM_RUN_IN_PROGRESS;
     mprintf("Started run!");
     startLBMTriggers(); /* Triggers can start happening NOW */
@@ -682,23 +760,31 @@ BOOLEAN getTestDiscEvent(USHORT *Ch0Data, USHORT *Ch1Data,
 }
 
 void startLBMTriggers(void) {
-  UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
-    (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
-
-  switch (FPGA_trigger_mode) {
-  case CPU_TRIG_MODE:
-    hal_FPGA_TEST_trigger_forced(trigger_mask);
-    break;
-  case TEST_DISC_TRIG_MODE:
-    if(LCmode > 0) {
-      hal_FPGA_TEST_trigger_disc_lc(trigger_mask);
-    } else {
-      hal_FPGA_TEST_trigger_disc(trigger_mask);
+  if(FBRunIsInProgress()) {
+    UBYTE trigger_mask = 
+      (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
+    hal_FPGA_TEST_trigger_LED(trigger_mask);
+  } else if(runIsInProgress()) {
+    UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
+      (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
+    
+    switch (FPGA_trigger_mode) {
+    case CPU_TRIG_MODE:
+      hal_FPGA_TEST_trigger_forced(trigger_mask);
+      break;
+    case TEST_DISC_TRIG_MODE:
+      if(LCmode > 0) {
+	hal_FPGA_TEST_trigger_disc_lc(trigger_mask);
+      } else {
+	hal_FPGA_TEST_trigger_disc(trigger_mask);
+      }
+      break;
+    case TEST_PATTERN_TRIG_MODE:
+    default: /* Do nothing */ 
+      break;
     }
-    break;
-  case TEST_PATTERN_TRIG_MODE:
-  default: /* Do nothing */ 
-    break;
+  } else {
+    /* Invalid run type.  Do nothing */
   }
 }
 
@@ -783,68 +869,24 @@ void insertTestEvents(void) {
 }
 
 
-void calibrateTriggeringSpeeds(void) {
-
-  /* Take a bunch of discriminator triggers as fast as possible in 1 second */
-  UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC |
-    (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
-  unsigned long t0 = FPGA(TEST_LOCAL_CLOCK_LOW);
-  unsigned long t1;
-
-#define FPGA_CLOCK_SPEED 40000000
-#define FPGA_CLOCKS_TO_NSEC 25 
-  int n = 0;
-
-  hal_FPGA_TEST_trigger_disc(trigger_mask);
-  bench_rec_t bcalib, breadout, bstarttrig, btestdone;
-  bench_init(&bcalib);
-  bench_init(&breadout);
-  bench_init(&bstarttrig);
-  bench_init(&btestdone);
-
-  while((t1=FPGA(TEST_LOCAL_CLOCK_LOW))-t0 < 1*FPGA_CLOCK_SPEED) {
-    bench_start(bcalib);
-    bench_end(&bcalib);
-
-    bench_start(btestdone);
-    int d = hal_FPGA_TEST_readout_done(trigger_mask);
-    bench_end(&btestdone);
-    if(!d) continue;
-
-    n++;
-    bench_start(breadout);
-#ifdef DOCH0
-    hal_FPGA_TEST_readout(Channel0Data, 0, 0, 0, 0, 0, 0, 0, ATWDCHSIZ, 0, (int) FlashADCLen,
-			  trigger_mask);
-#else
-    hal_FPGA_TEST_readout(Channel0Data, Channel1Data, Channel2Data, Channel3Data,
-			  0, 0, 0, 0, ATWDCHSIZ, FADCData, (int)FlashADCLen, trigger_mask);
-#endif
-    bench_end(&breadout);
-
-    bench_start(bstarttrig);
-    hal_FPGA_TEST_trigger_disc(trigger_mask);
-    bench_end(&bstarttrig);
-  }
-  mprintf("t0=%ld t1=%ld dt=%ld n=%d", t0, t1, t1-t0, n);
-  bench_show(&bcalib,     "Calibration");
-  bench_show(&bstarttrig, "Trigger start");
-  bench_show(&btestdone,  "Test done");
-#ifdef DOCH0
-  bench_show(&breadout,   "Readout (ch0 only)");
-#else
-  bench_show(&breadout,   "Readout");
-#endif
-}
-
-
 void bufferLBMTriggers(void) {
   unsigned long long time;
-  UBYTE trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
-    (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
   int gottrig = 0;
   //unsigned long tsr0, tsr1;
-  if(DOM_state != DOM_RUN_IN_PROGRESS) return; /* Do nothing unless run in progress */
+
+  /* Do nothing unless run in progress */
+  if((!runIsInProgress()) && (!FBRunIsInProgress())) return; 
+
+  UBYTE trigger_mask;
+  if (FBRunIsInProgress()) {
+      trigger_mask =
+          (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
+  }
+  else {
+      trigger_mask = HAL_FPGA_TEST_TRIGGER_FADC | 
+          (FPGA_ATWD_select ? HAL_FPGA_TEST_TRIGGER_ATWD1 : HAL_FPGA_TEST_TRIGGER_ATWD0);
+  }
+
   /* Read out data */
   switch (FPGA_trigger_mode) {
   case CPU_TRIG_MODE:

@@ -37,14 +37,17 @@
 #define DATA_ACC_SET_SW_DATA_COMPRESSION_FORMAT 20
 #define DATA_ACC_GET_SW_DATA_COMPRESSION_FORMAT 21
 #define DATA_ACC_RESET_LBM 22
+#define DATA_ACC_GET_FB_SERIAL 23 /* out: UB*n serial ID */
 
 // define service specific error values
-#define DAC_Data_Overrun     4
-#define DAC_Moni_Not_Init    5
-#define DAC_Moni_Overrun     6
-#define DAC_Moni_Badstat     7
-#define DAC_Bad_Compr_Format 8
-#define DAC_Bad_Argument     9
+#define DAC_Data_Overrun        4
+#define DAC_Moni_Not_Init       5
+#define DAC_Moni_Overrun        6
+#define DAC_Moni_Badstat        7
+#define DAC_Bad_Compr_Format    8
+#define DAC_Bad_Argument        9
+#define DAC_Cant_Get_FB_Serial 10
+#define DAC_Cant_Enable_FB     11
 
 /* These are Data Access specific return message
    formats and values.  In most cases, they are formatted

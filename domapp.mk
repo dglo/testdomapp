@@ -23,6 +23,12 @@ OBJS  = DOMdataCompression.o \
 
 all: ../bin/domapp.bin.gz
 
+domapp.o: domapp.c ../public/domapp_common/version.h
+
+dataAccess.o: dataAccess.c ../public/dataAccess/DACmessageAPIstatus.h
+
+expControl.o: expControl.c ../public/expControl/EXPmessageAPIstatus.h
+
 clean:
 	rm -f *.o *.i *.bin *.elf
 

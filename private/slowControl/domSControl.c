@@ -283,7 +283,8 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
 		    break;
 		}
-		else if(!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE)){
+		else if((!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE))
+			|| DOM_state==DOM_FB_RUN_IN_PROGRESS){
 		    /* format up failure response */
 		    Message_setDataLen(M,0);
 		    domsc.msgProcessingErr++;

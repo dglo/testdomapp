@@ -1,3 +1,4 @@
+/* expControl.c */
 
 /*
 Author: Chuck McParland
@@ -169,6 +170,7 @@ void expControl(MESSAGE_STRUCT *M) {
 	    /* enable FPGA triggers */ 
 	    case EXPCONTROL_ENA_TRIG:
 		if (1==0) {
+		    /* disabled for test versions */
 		    expctl.msgProcessingErr++;
 		    strcpy(expctl.lastErrorStr,EXP_CANNOT_START_TRIG);
 		    expctl.lastErrorID=EXP_Cannot_Start_Trig;
@@ -185,6 +187,7 @@ void expControl(MESSAGE_STRUCT *M) {
 	    /* disable FPGA triggers */
 	    case EXPCONTROL_DIS_TRIG:
 		if (1==0) {
+		    /* disabled for test versions */
 		    expctl.msgProcessingErr++;
 		    strcpy(expctl.lastErrorStr,EXP_CANNOT_STOP_TRIG);
 		    expctl.lastErrorID=EXP_Cannot_Stop_Trig;

@@ -1,16 +1,22 @@
 /* DOMSControl.h */
-#ifndef _DOMSCONTROL_
-#define _DOMSCONTROL_
+#ifndef _DOMSCONTROL_H_
+#define _DOMSCONTROL_H_
 
 /* Header file for defines, structs, etc. for
    the Data Access Service. */
 
 /* Data Access version info. */
-#define DSC_MAJOR_VERSION 2
-#define DSC_MINOR_VERSION 0 
+#define DSC_MAJOR_VERSION 10
+#define DSC_MINOR_VERSION 1 
+/* major version 10	10 May 2003
+	beginning icecube domapp code chain, version 10 coded as
+	single threaded version for test purposes.
+*/
+/* minor version 1	5 July	2003
+	added pulser and mux routines
+*/
 
-/* maximum length of Data Access last 
-   error string. */
+/* maximum length of slow control last error string */
 #define DSC_ERROR_STR_LEN 80
 
 /* default maximums for PMT HV anode and dynode */

@@ -1,16 +1,22 @@
 /* ExpControl.h */
-#ifndef _EXPCONTROL_
-#define _EXPCONTROL_
+#ifndef _EXPCONTROL_H_
+#define _EXPCONTROL_H_
 
 /* Header file for defines, structs, etc. for */
 /* the Experiment Control Service. */
 
 /* Experiment Control version info. */
-#define EXP_MAJOR_VERSION 2
-#define EXP_MINOR_VERSION 0
+#define EXP_MAJOR_VERSION 10
+#define EXP_MINOR_VERSION 1
+/* major version 10	10 May 2003
+	beginning of icecube domapp code chain, version 10 coded as 
+	single threaded version for test purposes.
+*/
+/* minor version 1	5 July 2003
+	formatting changes only.
+*/
 
-/* maximum length of Experiment Control last */
-/* error string. */
+/* maximum length of Experiment Control last error string */
 #define EXP_ERROR_STR_LEN 80
 
 /* Experiment Control error strings */

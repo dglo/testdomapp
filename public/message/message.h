@@ -1,6 +1,10 @@
+/* message.h */
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
 
+/* defines for message header struct and field
+extraction routines. 
+*/
 
 /* private per instance data */
 #define MSG_HDR_LEN 8
@@ -23,10 +27,6 @@ typedef struct {
 #define MESSAGE_FLAG_VALUE 1
 #define PACKET_SIZE_VALUE 8 
 #define MAXDATA_VALUE (4096 - MSG_HDR_LEN)
-
-#define FPGA_TRIG_FIFO 0
-#define FPGA_CMD_FIFO 1
-#define FPGA_DATA_FIFO 2
 
 #define MEM_ERROR 0
 #define MEM_CREATE_ERROR -1

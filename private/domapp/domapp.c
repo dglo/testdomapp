@@ -3,7 +3,7 @@
  * @author McP, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2003-05-14 01:28:35 $
+ * $Date: 2003-07-05 19:20:00 $
  *
  * @section ration Rationale
  *
@@ -34,10 +34,10 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.4 $
+ * $Revision: 1.10 $
  * $Author: mcp $
  * Based on original code by Chuck McParland
- * $Date: 2003-05-14 01:28:35 $
+ * $Date: 2003-07-05 19:20:00 $
 */
 
 #if defined (CYGWIN) || defined (LINUX)
@@ -168,7 +168,7 @@ int main(void) {
     int dom_simulation_file; 
     UBYTE b;
 
-#if defined (CYGWIN) || (LINUX)
+#if defined (CYGWIN) || defined (LINUX)
     fd_set fds;
     struct timeval timeout;
 
@@ -197,7 +197,7 @@ int main(void) {
     sprintf(logname,"dom_log_%s.txt", id6dig);
     
     log = fopen(logname, "w"); 
-    //log = stderr; /* Do this if you want messages to stderr instead
+    //log = stderr; /* Do this if you want messages to stderrinstead
     //		       of log file */
 
     fprintf(log, "domapp: opened log file.\n");
@@ -222,11 +222,13 @@ int main(void) {
 
     /* init messageBuffers */
     messageBuffers_init();
+    //fprintf(stderr,"domapp: Ready to go\r\n");
 
     /* manually init all the domapp components */
     msgHandlerInit();
     domSControlInit();
     expControlInit();
+    dataAccessInit();
 
     //printf("domapp: Readdy to go\r\n");
     
@@ -245,12 +247,12 @@ int main(void) {
      
         status = recvMsg();
 
-        if (status <= 0) {
+        if (status < 0) {
         /* error reported from receive, or EOF */
 	    //fprintf(log, "domapp: Error or EOF from recvMsg() (%d).\n",
 		    //status);
   	    //fflush(log);
-#if defined (CYGWIN) || (LINUX)
+#if defined (CYGWIN) || defined (LINUX)
 	    return COM_ERROR;
 #else
 	    //printf(" recv4Msg returnned with error.\r\n");
@@ -261,14 +263,14 @@ int main(void) {
 	}
 	
 	//handle the request
-    	//printf("received message.");
+    	//fprintf(stderr,"received message.");
 	msgHandler(messageBuffer);
       
 	if ((status = sendMsg()) < 0) {
 	  //fprintf(log,"domapp: problem on send: status %d.\n",status);
 	  /* error reported from send */
 	  //fflush(log);
-#if defined (CYGWIN) || (LINUX)
+#if defined (CYGWIN) || defined (LINUX)
 	  return COM_ERROR;
 #else
 	  return;
@@ -281,7 +283,7 @@ int main(void) {
     //fprintf(log,"%s\n\r",errorMsg);
     //fclose(log);
 
-#if defined (CYGWIN) || (LINUX)
+#if defined (CYGWIN) || defined (LINUX)
     return 0;
 #else
     return;
@@ -289,7 +291,7 @@ int main(void) {
 
 }
 
-#if defined (CYGWIN) || (LINUX)
+#if defined (CYGWIN) || defined (LINUX)
 void cleanup_exit(int sig) {
   /* Close input/output files/sockets.
      Since this handler is established for more than one kind of signal, 
@@ -355,12 +357,12 @@ int recvMsg(void) {
   //fprintf(log, "domapp: about to gmsr_recvMessageGeneric.\n");
   
   /* Read in the whole message, now using generic functions */
-#if defined (CYGWIN) || (LINUX)
+#if defined (CYGWIN) || defined (LINUX)
   sts = gmsr_recvMessageGeneric(dom_input_file, messageBuffer, dataBuffer_p, 0);
 #else
   sts = readmsg(dom_input_file, messageBuffer, dataBuffer_p);
 #endif
-  if(sts <= 0) {
+  if(sts < 0) {
     /* patch up the message buffer and release it */
     Message_setData(messageBuffer, dataBuffer_p, MAXDATA_VALUE);
     messageBuffers_release(messageBuffer);
@@ -427,7 +429,9 @@ int readmsg(int fd, MESSAGE_STRUCT *recvBuffer_p, char *recvData) {
 
   payloadLength = Message_dataLen(recvBuffer_p);
   //printf("in readmsg: payloadLength: %d\r\n", payloadLength);
-  if(payloadLength > MAXDATA_VALUE || payloadLength <= 0) return COM_ERROR;
+  if(payloadLength > MAXDATA_VALUE) return COM_ERROR;
+
+  if(payloadLength == 0) return payloadLength;
 
   for(i = 0; i < payloadLength; i++) {
     read(fd, recvData, 1);

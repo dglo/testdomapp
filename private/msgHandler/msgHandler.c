@@ -1,14 +1,17 @@
+/* msgHandler.c */
 /*
-// function reads a message from a fifo
-// and puts it onto the destination stack
-// described by message type field
-// If destination cannot be determined, put
-// message back to sender ( marked undeliverable)
+This service reads a message from a fifo
+and puts it onto the destination stack
+described by message type field
+If destination cannot be determined, put
+message back to sender ( marked undeliverable)
 */ 
 
 #include "hal/DOM_MB_types.h"
 #include "hal/DOM_MB_hal.h"
+#if defined (CYGWIN) || defined (LINUX)
 #include <string.h>
+#endif
 
 /* DOMtypes.h needed for Linux -- deal w/ using ifdefs? */
 //#include "domapp_common/DOMtypes.h"
@@ -89,19 +92,10 @@ void msgHandler(MESSAGE_STRUCT *M)
 		domSControl(M);
 		break;
 
-	    /* case DATA_ACCESS: */
-		/* push message on LookBackStack */
-		/* if(TRUE) {
-		    DataAccStackOvfl++;
-		    msgReject=TRUE;
-		    msgHand.msgProcessingErr++;
-		    strcpy(msgHand.lastErrorStr,
-			MSGHAND_SERVER_STACK_FULL);
-		    msgHand.lastErrorID=MSGHAND_server_stack_full;
-		    Message_setStatus(M,
-			SERVER_STACK_FULL|SEVERE_ERROR);
-		}
-		break; */
+	    case DATA_ACCESS: 
+		/* forward to data access */
+		dataAccess(M);
+		break;
 
 	    case EXPERIMENT_CONTROL:
 		/* forward to expControl */
@@ -312,11 +306,12 @@ void msgHandler(MESSAGE_STRUCT *M)
 			Message_setDataLen(M,Message_dataLen(M));
 			Message_setStatus(M,SUCCESS);
 			break;
-		    case MSGHAND_GET_DOM_POSITION:
-			data[0]=0;
-			data[1]=2;
+		    case MSGHAND_REBOOT_CPU_FLASH:
+		 	/* hal reboot */
+			halSetFlashBoot();
+			halBoardReboot();
 			Message_setStatus(M,SUCCESS);
-			Message_setDataLen(M,MSGHAND_GET_DOM_POSITION_LEN);
+			Message_setDataLen(M,0);
 			break;
 		    /*----------------------------------- */
 		    /* unknown service request (i.e. message */

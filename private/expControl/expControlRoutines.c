@@ -1,4 +1,5 @@
-// ExpControlRoutines.c //
+/* ExpControlRoutines.c */
+
 /*
 Author: Chuck McParland
 Start Date: May 4, 1999

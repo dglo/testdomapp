@@ -1,4 +1,5 @@
-/* DOMSControl.c */
+/* domSControl.c */
+
 /*
 Author: Chuck McParland
 Start Date: May 4, 1999
@@ -7,6 +8,11 @@ Description:
 	Performs all "standard" DOM service functions.
 Last Modification:
 */
+
+// REMOVE ASAP....GET VALUES FROM HAL DOM_MB_types.h
+
+#define TRUE 0
+#define FALSE 1
 
 /* DOM-related includes */
 #include "hal/DOM_MB_types.h"
@@ -28,8 +34,15 @@ extern USHORT unformatShort(UBYTE *buf);
 extern UBYTE DOM_state;
 extern UBYTE DOM_config_access;
 
+/* global storage */
+extern UBYTE FPGA_trigger_mode;
+extern int FPGA_ATWD_select;
+
 /* local functions, data */
 USHORT PMT_HV_max=PMT_HV_DEFAULT_MAX;
+BOOLEAN pulser_running = FALSE;
+USHORT pulser_rate = 0;
+UBYTE selected_mux_channel = 0;
 
 /* struct that contains common service info for
 	this service. */
@@ -269,12 +282,13 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SERVICE_SPECIFIC_ERROR|WARNING_ERROR);
 		    break;
 		}
+		halWriteBaseDAC(PMT_HVreq);
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;
 
 	    case DSC_ENABLE_PMT_HV:
-		if(DOM_config_access==0){
+		if(!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE)){
 		    /* format up failure response */
 		    Message_setDataLen(M,0);
 		    domsc.msgProcessingErr++;
@@ -312,7 +326,8 @@ void domSControl(MESSAGE_STRUCT *M) {
 		//data[0]=halPMT_HVisEnabled();
 		data[0]=0;
 		data[1]=0;
-		formatShort(halReadPMT_HV(),&data[2]);
+		formatShort(halReadBaseADC(),&data[2]);
+		formatShort(halReadBaseDAC(),&data[4]);
 		Message_setDataLen(M,DSC_QUERY_PMT_HV_LEN);
 		Message_setStatus(M,SUCCESS);
 		break;
@@ -335,7 +350,88 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SUCCESS);
 		}
 		break;
-		
+	    case DSC_SET_TRIG_MODE:
+		/* store trigger mode, data access routines are
+		   responsible for checking legal trigger mode values */
+		FPGA_trigger_mode = data[0];
+		Message_setDataLen(M,0);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_GET_TRIG_MODE:
+		/* return trigger mode */
+		data[0] = FPGA_trigger_mode;
+		Message_setDataLen(M,DSC_GET_TRIG_MODE_LEN);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_SELECT_ATWD:
+		/* store ATWD select value */
+		if(data[0] == 0) {
+		    FPGA_ATWD_select = 0;
+		}
+		else {
+		    FPGA_ATWD_select = 1;
+		}
+		Message_setDataLen(M,0);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_WHICH_ATWD:
+		/* return ATWD select value */
+		data[0] = (UBYTE)FPGA_ATWD_select;
+		Message_setDataLen(M,DSC_WHICH_ATWD_LEN);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_MUX_SELECT:
+		/* select mux channel for ATWD channel 3 */
+		selected_mux_channel = data[0];
+		halSelectAnalogMuxInput(selected_mux_channel);
+		Message_setDataLen(M,0);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_WHICH_MUX:
+		/* return selected mux channel */
+		data[0] = selected_mux_channel;
+		Message_setDataLen(M,DSC_WHICH_MUX_LEN);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_SET_PULSER_RATE:
+		pulser_rate = unformatShort(&data[0]);
+		// hal set pulser rate (pulser_rate)
+		hal_FPGA_TEST_set_pulser_rate(pulser_rate);
+		Message_setDataLen(M,0);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_GET_PULSER_RATE:
+		formatShort(pulser_rate, &data[0]);
+		Message_setDataLen(M,DSC_GET_PULSER_RATE_LEN);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_SET_PULSER_ON:
+		pulser_running = TRUE;
+		// hal set pulser running
+		hal_FPGA_TEST_enable_pulser();
+		Message_setDataLen(M,0);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_SET_PULSER_OFF:
+		pulser_running = FALSE;
+		// hal set pulser  off
+		hal_FPGA_TEST_disable_pulser();
+		Message_setDataLen(M,0);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_PULSER_RUNNING:
+		data[0] = pulser_running;
+		Message_setDataLen(M,DSC_PULSER_RUNNING_LEN);
+		Message_setStatus(M,SUCCESS);
+		break;
+	    case DSC_GET_RATE_METERS:
+		formatLong((ULONG)hal_FPGA_TEST_get_spe_rate(),
+		    &data[0]);
+		formatLong((ULONG)hal_FPGA_TEST_get_mpe_rate(),
+		    &data[4]);
+		Message_setDataLen(M,DSC_GET_RATE_METERS_LEN);
+		Message_setStatus(M,SUCCESS);
+		break;  
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

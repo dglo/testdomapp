@@ -2,16 +2,18 @@
  *   @file genericMsgSendRecv.c
  * Methods to send and receive messages either over a socket or 
  * using the device driver files
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * @author John Jacobsen, John J. IT Svcs, for LBNL and IceCube
  * Parts of this are based on code by Chuck McParland
- * $Date: 2003-05-09 23:38:01 $
+ * $Date: 2003-07-05 19:20:00 $
  */
 
+#if defined (CYGWIN) || defined (LINUX)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#endif
 /** project include files */
 #include "msgHandler/msgHandlerTest.h"
 #include "domapp_common/DOMtypes.h"
@@ -218,11 +220,11 @@ int gmsr_sendMessageGeneric(int filedes,
       @author Jacobsen
    */
   long sendlen;
-  ssize_t wrote;
+  int wrote;
   static char sub[] = "gmsr_sendMessageGeneric";
   char txbuf[MAXDATA_VALUE + MSG_HDR_LEN]; // + sizeof(long)];
 
-  if(sendBuffer_p == NULL) {
+  if(sendBuffer_p == 0) {
     return 0; /* Bad source pointer --> no data sent */
   }
 

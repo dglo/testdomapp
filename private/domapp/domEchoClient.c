@@ -6,7 +6,7 @@
  * running in simulation mode (sim_queue).
  * $Rev $
  * $Author: mcp $
- * $Date: 2003-05-05 06:47:14 $
+ * $Date: 2003-07-05 19:20:00 $
  */
 
 /** system include files */
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
   int rc;
   int sent, recvd;
   int imsg;
-  static int num_msgs = 1000;
+  static int num_msgs = 10;
 
   struct hostent *h;
   struct sockaddr_in localAddr, servAddr;
@@ -173,10 +173,13 @@ int main(int argc, char* argv[]) {
   }
 
   for(imsg=0; imsg < num_msgs; imsg++) {
-    Message_setType(downMessage, MESSAGE_HANDLER);
-    Message_setSubtype(downMessage, MSGHAND_ECHO_MSG);
+    //Message_setType(downMessage, MESSAGE_HANDLER);
+    Message_setType(downMessage, 3);
+    Message_setSubtype(downMessage, 11);
+    //Message_setSubtype(downMessage, MSGHAND_ECHO_MSG);
     Message_setStatus(downMessage, SUCCESS); /* Do I fill before send or leave blank? */
-    Message_setData(downMessage, test_echo_message, strlen(test_echo_message));
+    Message_setData(downMessage, test_echo_message, 0);
+    //Message_setData(downMessage, test_echo_message, strlen(test_echo_message));
 
     /* Send message down */
     fprintf(stderr,"%s: About to send message.\n",PRG);
@@ -204,6 +207,7 @@ int main(int argc, char* argv[]) {
       return ERROR;
     }
     
+/*
     if(Message_dataLen(downMessage) != Message_dataLen(upMessage)) {
       fprintf(stderr,"%s: Down message payload (%d bytes)"
 	      "!= up message payload (%d bytes).\n",
@@ -212,11 +216,13 @@ int main(int argc, char* argv[]) {
 	      Message_dataLen(upMessage));
       return ERROR;
     }
+*/
     
     fprintf(stderr,"%s: Down and up message payload byte count agreed (%d bytes).\n",
 	    PRG,
-	    Message_dataLen(downMessage));
+	    Message_dataLen(upMessage));
     
+/*
     for(i=0; i < Message_dataLen(downMessage) && i < MAXDATA_VALUE; i++) {
       if(compare_echo_message[i] != up_message_body[i]) {
 	fprintf(stderr,"%s: Down message payload and up message payload disagree"
@@ -225,6 +231,7 @@ int main(int argc, char* argv[]) {
 	return ERROR;
       }
     }  
+*/
     
     fprintf(stderr,"%s: Message %d sent and received correctly.\n",PRG, imsg);
 

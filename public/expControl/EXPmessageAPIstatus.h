@@ -1,16 +1,12 @@
 /* EXPmessagerAPIstatus.h */
+#ifndef _EXP_MESSAGE_API_STATUS_H_
+#define _EXP_MESSAGE_API_STATUS_H_
 
 /* This file contains subtype values for the 
    DAQ<=>DOM messaging API used by the Experiment
    Control service.  
 
-   March 30, 1999
    Chuck McParland */
-
-
-#ifndef _EXP_MESSAGE_API_STATUS_
-#define _EXP_MESSAGE_API_STATUS_
-
 
 /* message API subtype values. This field is not
    declared as an enum because each service declares

@@ -3,7 +3,7 @@
  * @author Chuck McParland, with mods by Jacobsen
  * Based on original code by mcp.
  *
- * $Date: 2004-04-30 01:10:35 $
+ * $Date: 2004-04-30 17:40:03 $
  *
  * @section ration Rationale
  *
@@ -34,14 +34,27 @@
  * settup and manage the environment used in simulating execution of
  * the DOM application on other platforms.
  *
- * $Revision: 1.21 $
+ * $Revision: 1.22 $
  * $Author: jacobsen $
  * Based on original code by Chuck McParland
- * $Date: 2004-04-30 01:10:35 $
+ * $Date: 2004-04-30 17:40:03 $
 */
 
 #include <unistd.h> /* Needed for read/write */
 #include <stdio.h> /* snprintf */
+
+#if defined (CYGWIN) || defined (LINUX)
+/** system include files */
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <time.h>   /* for time() */
+#include <signal.h> /* For signal() */
+#include <errno.h>  /* For errno, on open */
+#include <fcntl.h>
+
+#endif
 
 // DOM-related includes
 #include "hal/DOM_MB_types.h"

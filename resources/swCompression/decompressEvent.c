@@ -25,8 +25,8 @@ USHORT getBit(const ULONG *buf_in, int *word_p, int *bit_p) {
 
     USHORT bitval = 0;
 
-    /* Bits are read out MSB first */
-    if ((buf_in[*word_p] & (0x80000000U >> *bit_p)) != 0)
+    /* Bits are read out LSB first */
+    if ((buf_in[*word_p] & (0x1U << *bit_p)) != 0)
         bitval = 1;
 
     (*bit_p)++;

@@ -1,1 +1,0 @@
--include ../dom-loader/$(PLATFORM_PUB_ROOT)/loader/loaderTargets.mk

@@ -213,7 +213,7 @@ BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHO
   }
 
   hal_FB_select_mux_input(DOM_FB_MUX_LED_1 + firstled);  
-  hal_FB_set_rate(rate);
+  hal_FPGA_TEST_FB_set_rate(rate);
 
   /* Convert launch delay from ns to FPGA units */
   int delay_i = (delay / 25) - 2;

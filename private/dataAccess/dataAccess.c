@@ -383,7 +383,7 @@ void dataAccess(MESSAGE_STRUCT *M) {
       wasEnabled = hal_FB_isEnabled();
       Message_setDataLen(M, 0);
       if(!wasEnabled) {
-	if(hal_FB_enable(&config, &valid, &reset, DOM_FPGA_TEST)) {
+	if(hal_FB_enable(&config, &valid, &reset)) {
 	  datacs.lastErrorID = DAC_Cant_Enable_FB;
 	  strcpy(datacs.lastErrorStr, DAC_CANT_ENABLE_FB);
 	  datacs.lastErrorSeverity = WARNING_ERROR;

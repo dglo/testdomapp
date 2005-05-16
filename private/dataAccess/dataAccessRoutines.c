@@ -181,7 +181,7 @@ BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHO
 
   DOM_state = DOM_FB_RUN_IN_PROGRESS;
   int err, config_t, valid_t, reset_t;
-  err = hal_FB_enable(&config_t, &valid_t, &reset_t, DOM_FPGA_TEST);
+  err = hal_FB_enable(&config_t, &valid_t, &reset_t);
   if (err != 0) {
     switch(err) {
     case FB_HAL_ERR_CONFIG_TIME:
@@ -213,7 +213,7 @@ BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHO
   }
 
   hal_FB_select_mux_input(DOM_FB_MUX_LED_1 + firstled);  
-  hal_FPGA_TEST_FB_set_rate(rate);
+  hal_FB_set_rate(rate);
 
   /* Convert launch delay from ns to FPGA units */
   int delay_i = (delay / 25) - 2;

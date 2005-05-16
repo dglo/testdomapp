@@ -72,45 +72,34 @@ die "Can't find current $header!  Old version of domapp?\n" unless -f $header;
 print "Updating $header...\n";
 print `cvs update -A $header`;
 
-sub create_header {
-    my $tag = shift;
-    print "Creating new $header...\n";
-    open H, ">$header" || die "Can't open $header: $!\n";
-    print H "#define DOMAPP_RELEASE \"$tag\"\n";
-    close H;
-    print "New $header is:\n".`cat $header`;
-}
-create_header $tag;
+print "Creating new $header...\n";
+open H, ">$header" || die "Can't open $header: $!\n";
+print H "#define DOMAPP_RELEASE \"$tag\"\n";
+close H;
+print "New $header is:\n".`cat $header`;
 
 print "Result of cvs diff --brief:\n".`cvs diff --brief`;
 
-print "Commit current version of testdomapp to CVS? ";
+print "Commit current version of domapp to CVS? ";
 chomp(my $resp = <STDIN>);
-if($resp =~ /^y/i) {
+if($resp =~ /^y/) {
     print `cvs commit -m "Tagging current version as $tag..."`;
 }
 
 if($bfd_or_tag eq "TAG") {
     print "Tag current release as $tag? ";
     chomp(my $resp = <STDIN>);
-    if($resp =~ /^y/i) {
+    if($resp =~ /^y/) {
 	print `cd ..; cvs tag $tag testdomapp; cd testdomapp`;
     }
 } elsif($bfd_or_tag eq "BFD") {
     print "Deliver $tag? ";
     chomp(my $resp = <STDIN>);
-    if($resp =~ /^y/i) {
+    if($resp =~ /^y/) {
 	chdir "..";
 	system "bfd deliver $deliver testdomapp";
 	chdir "testdomapp";
     }
-}
-
-print "Pollute header file to show HEAD? ";
-chomp(my $resp = <STDIN>);
-if($resp =~ /^y/i) {
-    create_header "HEAD!";
-    print `cvs commit -m "Mod of version.h to show HEAD..." $header`;
 }
 
 print "\n\nDone.\n";

@@ -328,7 +328,7 @@ USHORT compressEvent(const UBYTE *buf_in, ULONG *buf_out) {
 
 
     /* Compress all ATWD channels available */
-    int atwd = getEngATWDNumber(buf_in);
+    //int atwd = getEngATWDNumber(buf_in);
     for (ch = 0; ch < 4; ch++) {
         
         if ((data = getEngChannelData(buf_in, ch)) != NULL) {

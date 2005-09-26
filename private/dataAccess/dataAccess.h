@@ -24,14 +24,15 @@
 /* for DAC_No_Errors */
 #define DAC_ERS_NO_ERRORS "DAC: No errors."
 /* for DAC_Bad_Msg_Subtype */
-#define DAC_ERS_BAD_MSG_SUBTYPE "DAC: Bad msg subtype."
-/* for DAC_Data_Overrun */
-#define DAC_DATA_OVERRUN "DAC: Readout buffer data overrun."
-/* JEJ for monitoring not initialized */
-#define DAC_MONI_NOT_INIT "DAC: Monitoring not initialized"
-#define DAC_MONI_OVERFLOW "DAC: Monitoring buffer overflowed"
-#define DAC_MONI_BADSTAT  "DAC: Monitoring: bad status"
-
+#define DAC_ERS_BAD_MSG_SUBTYPE  "DAC: Bad msg subtype."
+#define DAC_DATA_OVERRUN         "DAC: Readout buffer data overrun."
+#define DAC_MONI_NOT_INIT        "DAC: Monitoring not initialized"
+#define DAC_MONI_OVERFLOW        "DAC: Monitoring buffer overflowed"
+#define DAC_MONI_BADSTAT         "DAC: Monitoring: bad status"
+#define DAC_ERS_BAD_COMPR_FORMAT "DAC: Compression: bad format specifier"
+#define DAC_ERS_BAD_ARGUMENT     "DAC: Bad message argument"
+#define DAC_CANT_ENABLE_FB       "DAC: Can't enable flasher board"
+#define DAC_CANT_GET_FB_SERIAL   "DAC: Can't get flasher board serial number"
 /* define ALLOCATE_READOUT_BUFFER if you want dataAccess
    to allocate memory to be used for FPGA simulation.
    Otherwise define READOUT_BASE_ADDR to the real address

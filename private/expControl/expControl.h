@@ -32,11 +32,19 @@
 #define EXP_CANNOT_BEGIN_RUN "Exp: Cannot begin run."
 /* for EXP_Cannot_End_Run */
 #define EXP_CANNOT_END_RUN "Exp: Cannot end run."
+#define EXP_CANNOT_BEGIN_FB_RUN "Exp: Cannot begin FB run."
+#define EXP_CANNOT_END_FB_RUN "Exp: Cannot end FB run."
+
 /* for EXP_Cannot_Reset_Run_State */
 #define EXP_CANNOT_RESET_RUN_STATE "Exp: Cannot reset run state."
+
+#define EXP_PEDESTAL_RUN_FAILED "Exp: Pedestal run failed."
+#define EXP_TOO_MANY_PEDS "Exp: Too many pedestal triggers requested."
+#define EXP_PEDESTALS_NOT_AVAIL "Exp: Pedestals not available, did you EXPCONTROL_DO_PEDESTAL_COLLECTION?"
 
 /* expControl entry point */
 void expControlInit(void);
 void expControl(MESSAGE_STRUCT *M);
+void pedestalRunEntryPoint(void);
 
 #endif

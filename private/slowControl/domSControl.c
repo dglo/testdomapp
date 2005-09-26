@@ -15,6 +15,8 @@ Jan. 14 '04 Jacobsen -- add monitoring actions for state change operations
 /* DOM-related includes */
 #include "hal/DOM_MB_types.h"
 #include "hal/DOM_MB_hal.h"
+#include "hal/DOM_FPGA_regs.h"
+
 #include "message/message.h"
 #include "dataAccess/moniDataAccess.h"
 
@@ -45,6 +47,8 @@ BOOLEAN pulser_running = FALSE;
 USHORT pulser_rate = 0;
 UBYTE selected_mux_channel = 0;
 ULONG deadTime = 0;
+ULONG up_pre_ns, up_post_ns, dn_pre_ns, dn_post_ns;
+UBYTE LCmode = 0;
 
 /* struct that contains common service info for
 	this service. */
@@ -279,7 +283,8 @@ void domSControl(MESSAGE_STRUCT *M) {
 		    Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
 		    break;
 		}
-		else if(!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE)){
+		else if((!testDOMconstraints(DOM_CONSTRAINT_NO_HV_CHANGE))
+			|| DOM_state==DOM_FB_RUN_IN_PROGRESS){
 		    /* format up failure response */
 		    Message_setDataLen(M,0);
 		    domsc.msgProcessingErr++;
@@ -459,7 +464,74 @@ void domSControl(MESSAGE_STRUCT *M) {
                  Message_setDataLen(M,DSC_GET_SCALER_DEADTIME_LEN);
                  Message_setStatus(M,SUCCESS);
                  break;
+	     case DSC_SET_LOCAL_COIN_MODE:
+		 Message_setDataLen(M,0);
+		 if(data[0] == 0) {
+		   LCmode = data[0];
+       		   hal_FPGA_TEST_disable_spe_lc();
+		   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(), 
+						 LCmode);
+		   Message_setStatus(M,SUCCESS);
+		 } else if(data[0] == 1) {
+		   LCmode = data[0];
+		   hal_FPGA_TEST_enable_spe_lc(1,1);
+                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
+		   Message_setStatus(M,SUCCESS);
+                 } else if(data[0] == 2) { /* Upper ONLY */
+                   LCmode = data[0];
+                   hal_FPGA_TEST_enable_spe_lc(0, 1);
+                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
+                   Message_setStatus(M,SUCCESS);
+                 } else if(data[0] == 3) { /* Lower ONLY */
+                   LCmode = data[0];
+                   hal_FPGA_TEST_enable_spe_lc(1, 0);
+                   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
+                   Message_setStatus(M,SUCCESS);
+		 } else {
+		   domsc.msgProcessingErr++;
+		   strcpy(domsc.lastErrorStr,DSC_ILLEGAL_LC_MODE);
+		   domsc.lastErrorID=DSC_Illegal_LC_Mode;
+		   domsc.lastErrorSeverity=FATAL_ERROR;
+		   Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
+		 }
+	         break;
+	     case DSC_GET_LOCAL_COIN_MODE:
+		 data[0] = LCmode;
+                 Message_setDataLen(M,1);
+		 Message_setStatus(M,SUCCESS);
+	         break;
+	     case DSC_SET_LOCAL_COIN_WINDOW:
+	         up_pre_ns  = unformatLong(&data[0]);
+	         up_post_ns = unformatLong(&data[4]);
+		 dn_pre_ns  = unformatLong(&data[8]);
+		 dn_post_ns = unformatLong(&data[12]);
+                 Message_setDataLen(M,0);
 
+		 if(hal_FPGA_TEST_set_lc_launch_window(up_pre_ns, up_post_ns,
+						       dn_pre_ns, dn_post_ns)) {
+		   domsc.msgProcessingErr++;
+		   strcpy(domsc.lastErrorStr,DSC_LC_WINDOW_FAIL);
+		   domsc.lastErrorID=DSC_LC_Window_Fail;
+		   domsc.lastErrorSeverity=FATAL_ERROR;
+		   Message_setStatus(M,SERVICE_SPECIFIC_ERROR|FATAL_ERROR);
+		 } else {
+		   Message_setStatus(M,SUCCESS);
+		   moniInsertLCWindowChangeMessage(hal_FPGA_TEST_get_local_clock(),
+						   up_pre_ns, up_post_ns,
+						   dn_pre_ns, dn_post_ns);
+		 }		 
+	         break;
+	     case DSC_GET_LOCAL_COIN_WINDOW:
+	         formatLong(up_pre_ns,  &data[0]);
+		 formatLong(up_post_ns, &data[4]);
+		 formatLong(dn_pre_ns,  &data[8]);
+		 formatLong(dn_post_ns, &data[12]);
+                 Message_setDataLen(M,16);
+                 Message_setStatus(M,SUCCESS);
+	         break;
 	    /*-----------------------------------
 	      unknown service request (i.e. message
 	      subtype), respond accordingly */

@@ -4,6 +4,7 @@
 #include "domapp_common/packetFormatInfo.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "message/message.h"
+#include "string.h"
 
 const int messageFlag= MESSAGE_FLAG_VALUE;
 /* Maximum messagelength in byte */
@@ -13,7 +14,8 @@ void Message_init(MESSAGE_STRUCT *msg) {
   msg->head.hd.mt= 0; 	      
   msg->head.hd.dlenLO= 0;
   msg->head.hd.dlenHI= 0;
-  msg->data= (UBYTE*) 0;   
+  //msg->data= (UBYTE*) 0;   
+  memset(msg->data, 0, MAXDATA_VALUE);
 }
 
 /* structs and storage for messaging system */
@@ -77,11 +79,12 @@ void Message_setStatus(MESSAGE_STRUCT *msgStruct,
 }
 
 void Message_setData(MESSAGE_STRUCT *msgStruct,
-	UBYTE *d, int l)
+		     UBYTE *d, int l)
 {
- msgStruct->data = d;
- msgStruct->head.hd.dlenLO= l & 0xff;
- msgStruct->head.hd.dlenHI= ( l >> 8) & 0xff;
+  int len = l > MAXDATA_VALUE ? MAXDATA_VALUE : l;
+  memcpy(msgStruct->data, d, len);
+  msgStruct->head.hd.dlenLO= len & 0xff;
+  msgStruct->head.hd.dlenHI= ( len >> 8) & 0xff;
 }
 
 void Message_setDataLen(MESSAGE_STRUCT *msgStruct,

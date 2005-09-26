@@ -24,7 +24,8 @@ void messageBuffers_init()
 
     for(i=0;i<MAX_MSG;i++) {
 	msgFreeList[i]=&msgHdr[i];
-	msgHdr[i].data=&msgData[i][0];
+#warning remove this entire file
+	//msgHdr[i].data=&msgData[i][0];
    }
     nextMsgFree=0;
     lastMsgFree=0;

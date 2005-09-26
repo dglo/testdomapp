@@ -181,7 +181,7 @@ BOOLEAN beginFBRun(USHORT bright, USHORT window, USHORT delay, USHORT mask, USHO
 
   DOM_state = DOM_FB_RUN_IN_PROGRESS;
   int err, config_t, valid_t, reset_t;
-  err = hal_FB_enable(&config_t, &valid_t, &reset_t);
+  err = hal_FB_enable(&config_t, &valid_t, &reset_t, DOM_FPGA_TEST);
   if (err != 0) {
     switch(err) {
     case FB_HAL_ERR_CONFIG_TIME:

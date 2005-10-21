@@ -474,20 +474,26 @@ void domSControl(MESSAGE_STRUCT *M) {
 		   Message_setStatus(M,SUCCESS);
 		 } else if(data[0] == 1) {
 		   LCmode = data[0];
-		   hal_FPGA_TEST_enable_spe_lc(1,1);
+		   hal_FPGA_TEST_enable_spe_lc(1, 1, DOM_HAL_LC_LOGIC_OR);
                    moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
                                                  LCmode);
 		   Message_setStatus(M,SUCCESS);
                  } else if(data[0] == 2) { /* Upper ONLY */
                    LCmode = data[0];
-                   hal_FPGA_TEST_enable_spe_lc(0, 1);
+                   hal_FPGA_TEST_enable_spe_lc(0, 1, DOM_HAL_LC_LOGIC_OR);
                    moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
                                                  LCmode);
                    Message_setStatus(M,SUCCESS);
                  } else if(data[0] == 3) { /* Lower ONLY */
                    LCmode = data[0];
-                   hal_FPGA_TEST_enable_spe_lc(1, 0);
+                   hal_FPGA_TEST_enable_spe_lc(1, 0, DOM_HAL_LC_LOGIC_OR);
                    moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
+                                                 LCmode);
+                   Message_setStatus(M,SUCCESS);
+		 } else if(data[0] == 4) { /* up AND down */
+		   LCmode = data[0];
+                   hal_FPGA_TEST_enable_spe_lc(1, 1, DOM_HAL_LC_LOGIC_AND);
+		   moniInsertLCModeChangeMessage(hal_FPGA_TEST_get_local_clock(),
                                                  LCmode);
                    Message_setStatus(M,SUCCESS);
 		 } else {

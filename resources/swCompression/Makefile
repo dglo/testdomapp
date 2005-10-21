@@ -14,12 +14,8 @@ all: compress decompress
 clean:
 	rm -f compress decompress *.o
 
-compressEvent.o: ../../private/dataAccess/compressEvent.c \
-	     ../../private/dataAccess/compressEvent.h
-	$(CC) $(CFLAGS) -I $(INCDIR) -I ../../private -I ../../private/dataAccess -c ../../private/dataAccess/compressEvent.c 
-
-compress: compress.c engFormat.o compressEvent.o
-	$(CC) $(CFLAGS) -I $(INCDIR) -I ../../private/dataAccess -o compress compress.c engFormat.o compressEvent.o
+compress: compress.c compressEvent.c engFormat.c engFormat.h
+	$(CC) $(CFLAGS) -I $(INCDIR) -o compress compress.c compressEvent.c engFormat.c
 
 engFormat.o: ../../private/dataAccess/engFormat.c \
 	     ../../private/dataAccess/engFormat.h
@@ -28,3 +24,5 @@ engFormat.o: ../../private/dataAccess/engFormat.c \
 decompress: decompress.c decompressEvent.c engFormat.o
 	$(CC) $(CFLAGS) -I $(INCDIR) -I ../../private/dataAccess -o decompress \
 	   decompress.c decompressEvent.c engFormat.o
+
+

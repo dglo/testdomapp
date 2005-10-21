@@ -190,18 +190,18 @@ USHORT getEngFADCCount(const UBYTE *buf) {
 
 ULONG swapLong(const UBYTE *buf) {
   return (((buf[0]) << 24)
-          |((buf[1]) << 16)
-          |((buf[2]) << 8)
-          |((buf[3]) << 0));
+	 |((buf[1]) << 16)
+	 |((buf[2]) << 8)
+         |((buf[3]) << 0));
 }
 
-USHORT swapShort(const UBYTE *buf) {
-    return (((buf[0]) << 8)
-            |((buf[1]) << 0));
+ULONG swapShort(const UBYTE *buf) {
+  return (((buf[0]) << 8)
+	 |((buf[1]) << 0));
 }
 
 ULONG getEngTimestampLo(const UBYTE *buf) {
-    return swapLong(buf+12);
+  return swapLong(buf+12);
 }
 
 /*
@@ -375,15 +375,12 @@ void setEngFADCCount(UBYTE *buf, UBYTE cnt) {
  * timestamp.  Must unfortunately swap yet again (JEJ)
  */
 void setEngTimestampLo(UBYTE *buf, ULONG time_lo) {   
-#ifdef LE
-  *((ULONG *)(buf+12)) = time_lo;
-#else
   int of    = 12;
   buf[of+3] = ((time_lo >> 0)  & 0xFF);
   buf[of+2] = ((time_lo >> 8)  & 0xFF);
   buf[of+1] = ((time_lo >> 16) & 0xFF);
   buf[of+0] = ((time_lo >> 24) & 0xFF);
-#endif
+  //*((ULONG *)(buf+12)) = time_lo;
 }
 
 /*
@@ -432,6 +429,5 @@ void setEngEventLength(UBYTE *buf, USHORT len) {
  *
  */
 void setEngEventFormat(UBYTE *buf) {
-    buf[2] = 0x00;
-    buf[3] = 0x01;
+    *((USHORT *)(buf+2)) = 0x0100;
 }

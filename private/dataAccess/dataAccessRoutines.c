@@ -600,8 +600,9 @@ void formatEngineeringEvent(UBYTE *event, unsigned long long time) {
   default:
     trigmask = 0; trigmask |= TRIG_UNKNOWN_MODE; break;
   }
-  if(LCmode == 1 || LCmode == 2) trigmask |= TRIG_LC_UPPER_ENA;
-  if(LCmode == 1 || LCmode == 3) trigmask |= TRIG_LC_LOWER_ENA;
+  if(LCmode == 1 || LCmode == 2 || LCmode == 4) trigmask |= TRIG_LC_UPPER_ENA;
+  if(LCmode == 1 || LCmode == 3 || LCmode == 4) trigmask |= TRIG_LC_LOWER_ENA;
+  if(LCmode == 4) trigmask |= TRIG_LC_REQUIRE_BOTH;
   if(FBRunIsInProgress()) trigmask |= TRIG_FB_RUN;
 
   *event++ = trigmask;

@@ -4,15 +4,7 @@
 #include "domapp_common/packetFormatInfo.h"
 #include "domapp_common/messageAPIstatus.h"
 #include "message/message.h"
-
-/* includes for cygwin message passing fcns */
-#include <sys/types.h>
-#include <pthread.h>
-
-#ifdef LINUX
-// will remove after testing on linux
-//#include <linux/ipc.h>
-#endif
+#include "string.h"
 
 const int messageFlag= MESSAGE_FLAG_VALUE;
 /* Maximum messagelength in byte */
@@ -22,7 +14,8 @@ void Message_init(MESSAGE_STRUCT *msg) {
   msg->head.hd.mt= 0; 	      
   msg->head.hd.dlenLO= 0;
   msg->head.hd.dlenHI= 0;
-  msg->data= (UBYTE*) 0;   
+  //msg->data= (UBYTE*) 0;   
+  memset(msg->data, 0, MAXDATA_VALUE);
 }
 
 /* structs and storage for messaging system */
@@ -32,8 +25,6 @@ void Message_init(MESSAGE_STRUCT *msg) {
 #define NO_RECEIVER_WAITING 0
 
 typedef struct {
-    pthread_mutex_t queueInfo;
-    pthread_cond_t queueCV;
     int receiverWaiting;
     MESSAGE_STRUCT *queue[MESSAGE_QUEUE_SIZE];
     int nextElemPut;
@@ -88,11 +79,12 @@ void Message_setStatus(MESSAGE_STRUCT *msgStruct,
 }
 
 void Message_setData(MESSAGE_STRUCT *msgStruct,
-	UBYTE *d, int l)
+		     UBYTE *d, int l)
 {
- msgStruct->data = d;
- msgStruct->head.hd.dlenLO= l & 0xff;
- msgStruct->head.hd.dlenHI= ( l >> 8) & 0xff;
+  int len = l > MAXDATA_VALUE ? MAXDATA_VALUE : l;
+  memcpy(msgStruct->data, d, len);
+  msgStruct->head.hd.dlenLO= len & 0xff;
+  msgStruct->head.hd.dlenHI= ( len >> 8) & 0xff;
 }
 
 void Message_setDataLen(MESSAGE_STRUCT *msgStruct,
@@ -113,27 +105,9 @@ int Message_createQueue(int q) {
     }
     /* init the struct areas for this queue */
 
-    /* JEJ: Under Linux, this is a compile-time statement
-       invoked during run-time, and therefore an error.
-       So we use pthread_mutex_init instead. //
-         msgQueueList[q].queueInfo = PTHREAD_MUTEX_INITIALIZER;
-         msgQueueList[q].queueCV = PTHREAD_COND_INITIALIZER;
-    */
-    
-    if(pthread_mutex_init(&msgQueueList[q].queueInfo, NULL)) {
-      return MEM_CREATE_ERROR;
-    }
-
-    if(pthread_cond_init(&msgQueueList[q].queueCV, NULL)) {
-      return MEM_CREATE_ERROR;
-    }
-    /* end JEJ */
-
-    pthread_mutex_lock(&msgQueueList[q].queueInfo);
     msgQueueList[q].nextElemPut = 0;
     msgQueueList[q].nextElemGet = 0;
     msgQueueList[q].receiverWaiting = NO_RECEIVER_WAITING;
-    pthread_mutex_unlock(&msgQueueList[q].queueInfo);
     return q;
 }
 
@@ -142,21 +116,17 @@ int Message_createQueue(int q) {
 int Message_send(MESSAGE_STRUCT *msg,
 	int q)
 {
-    pthread_mutex_lock(&msgQueueList[q].queueInfo);
-
     // check for full state
     if(msgQueueList[q].nextElemPut > msgQueueList[q].nextElemGet) {
 	if(msgQueueList[q].nextElemPut != (MESSAGE_QUEUE_SIZE-1)) {
 	    if(msgQueueList[q].nextElemGet == 0) {
 		// we're full
-		pthread_mutex_unlock(&msgQueueList[q].queueInfo);
 	 	return MEM_ERROR;
 	    }
 	}
     }
     else if(msgQueueList[q].nextElemPut < msgQueueList[q].nextElemGet) {
 	if(msgQueueList[q].nextElemGet-msgQueueList[q].nextElemPut >= 1) {
-	    pthread_mutex_unlock(&msgQueueList[q].queueInfo);
 	    // we're full
 	    return MEM_ERROR;
    	}
@@ -169,15 +139,8 @@ int Message_send(MESSAGE_STRUCT *msg,
 	if(msgQueueList[q].nextElemPut >= MESSAGE_QUEUE_SIZE) {
 	    msgQueueList[q].nextElemPut = 0;
 	}
-
-	// signal the condition variable in case someone is waiting
-	if(msgQueueList[q].receiverWaiting == RECEIVER_WAITING) {
-	    pthread_cond_broadcast(&msgQueueList[q].queueCV);
-	}
-	// unlock info struct lock;
-	pthread_mutex_unlock(&msgQueueList[q].queueInfo);
-	return MEM_SUCCESS;
     }
+    return MEM_SUCCESS;
 }
 
 int Message_forward(MESSAGE_STRUCT *msgStruct,
@@ -189,14 +152,11 @@ int Message_forward(MESSAGE_STRUCT *msgStruct,
 int Message_receive(MESSAGE_STRUCT **msg,
 	int q)
 {
-    pthread_mutex_lock(&msgQueueList[q].queueInfo);
 
     // loop til non empty
     while (msgQueueList[q].nextElemGet == msgQueueList[q].nextElemPut) {
 	// we wait
 	msgQueueList[q].receiverWaiting = RECEIVER_WAITING;
-	pthread_cond_wait(&msgQueueList[q].queueCV,
-	    &msgQueueList[q].queueInfo);
     }
 
     *msg = msgQueueList[q].queue[msgQueueList[q].nextElemGet];
@@ -206,18 +166,15 @@ int Message_receive(MESSAGE_STRUCT **msg,
     }
     // now release the lock and return
     msgQueueList[q].receiverWaiting = NO_RECEIVER_WAITING;
-    pthread_mutex_unlock(&msgQueueList[q].queueInfo);
     return MEM_SUCCESS;
 }
 
 int Message_receive_nonblock(MESSAGE_STRUCT **msg,
 	int q)
 {
-    pthread_mutex_lock(&msgQueueList[q].queueInfo);
     
     // see if we are empty
     if(msgQueueList[q].nextElemGet == msgQueueList[q].nextElemPut) {
-	pthread_mutex_unlock(&msgQueueList[q].queueInfo);
  	return MEM_ERROR;
     }
 
@@ -226,10 +183,6 @@ int Message_receive_nonblock(MESSAGE_STRUCT **msg,
     if(msgQueueList[q].nextElemGet >= MESSAGE_QUEUE_SIZE) {
 	msgQueueList[q].nextElemGet = 0;
     }
-    // now release the lock and return
-    pthread_mutex_unlock(&msgQueueList[q].queueInfo);
     return MEM_SUCCESS;
 }
 
-	
-	

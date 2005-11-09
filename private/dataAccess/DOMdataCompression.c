@@ -1,9 +1,16 @@
 
+#include <string.h>
+
 // DOMdataCompression.c //
+
+/* For clock: */
+#include "hal/DOM_FPGA_regs.h"
 
 // DOM-related includes
 #include "domapp_common/DOMtypes.h"
 #include "dataAccess/DOMdataCompression.h"
+#include "dataAccess/compressEvent.h"
+#include "dataAccess/moniDataAccess.h"
 
 // local functions, data
 int bufferLen;
@@ -18,23 +25,24 @@ UBYTE *startDOMdataBuffer(UBYTE *bufferLoc) {
     return bufferLoc;
 }
 
-UBYTE *addAndCompressEvent(UBYTE *incomingData, UBYTE *bufferLoc) {
-    int incomingDataLen;
-
+UBYTE *addAndCompressEvent(UBYTE *incomingData, UBYTE *bufferLoc, int SW_compression) {
     // assume simulated, well formated event as input with byte
     // length in the first short word
-    incomingDataLen = *incomingData*256 + *(incomingData+1);
-    printf("addAndCompress: in: %x, loc: %x, len: %d\n",
-	incomingData, bufferLoc, incomingDataLen);
 
+  ULONG compressed[COMPRESSED_BUF_MAX];
+  int incomingDataLen;
+
+  if(SW_compression) {
+    int length_out = compressEvent(incomingData, compressed);
+    incomingDataLen = length_out*sizeof(ULONG);
+    if(incomingDataLen > bufferLenRemaining) return NULL;
+    memcpy(bufferLoc, compressed, incomingDataLen);
+  } else {
+    incomingDataLen = *incomingData*256 + *(incomingData+1);
     // verify that we have enough room left
-    if(incomingDataLen > bufferLenRemaining) {
-	// just return a null
-	return (UBYTE *)0;
-    }
-    else {
-	memcpy(bufferLoc, incomingData, incomingDataLen);
-	bufferLenRemaining-=incomingDataLen;
-	return (UBYTE *)(bufferLoc + incomingDataLen);
-    }
+    if(incomingDataLen > bufferLenRemaining) return NULL;    
+    memcpy(bufferLoc, incomingData, incomingDataLen);
+  }
+  bufferLenRemaining -= incomingDataLen;
+  return (UBYTE *)(bufferLoc + incomingDataLen);
 }

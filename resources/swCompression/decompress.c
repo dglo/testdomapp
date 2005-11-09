@@ -76,15 +76,15 @@ int main(int argc, char *argv[]) {
 
         /* Get size of event */
         /* Make sure we have a header */
-        if ((st.st_size>>2)-idx < 8) {
-            printf("Partial event at end of file\n");
+        if (st.st_size-idx*4 < 8) {
+            printf("Partial event at end of file (size=%d idx=%d)\n", st.st_size, idx);
             break;
         }
 
         /* Decompress the event */
         /* FIX ME -- deal with error return */
         err = decompressEvent(buf_in+idx, (st.st_size-idx), &len_in, buf_out, &len_out);
-
+	//printf("Event=%d size=%d idx=%d err=%d\n",cnt, st.st_size, idx, err);
         /* Write the output file */
         fwrite(buf_out, sizeof(UBYTE), len_out, fout);
 

@@ -1,33 +1,17 @@
-C_BIN_NAMES   :=  domapp domEchoClient
+C_BIN_NAMES :=  domapp domEchoClient runMoniDataAccess
+C_EXCLUDE_NAMES :=
+USES_PROJECTS := hal dom-loader
+USES_TOOLS := m pthread
 
-USES_PROJECTS := hal
-USES_TOOLS    := 
-DEPENDS_UPON  := 
-C_FLAGS      := 
+ifeq ("epxa10","$(strip $(PLATFORM))")
+  USES_TOOLS := $(filter-out pthread, $(USES_TOOLS))
+  C_BIN_NAMES := $(filter-out domEchoClient, $(C_BIN_NAMES))
+  C_BIN_NAMES := $(filter-out runMoniDataAccess, $(C_BIN_NAMES))
+  C_EXCLUDE_NAMES :=  domEchoClient runMoniDataAccess
+else
+  USES_PROJECTS := $(filter-out dom-loader, $(USES_PROJECTS))
+endif
 
-ifeq (cygwin-x86,$(strip $(PLATFORM)))
-  XTRA_TOOLS_LIBDIRS += /usr/local/lib
-  EXTRA_DEP_INC_DIRS += /usr/local/include
-#  DEPENDS_UPON += cygipc
+ifeq ("cygwin-x86","$(strip $(PLATFORM))")
   USES_TOOLS   += cygipc
-#  C_BIN_NAMES  += domappSocket
-  C_FLAGS     += -DCYGWIN
 endif
-
-ifeq (Linux-i386, $(strip $(PLATFORM)))
-   XTRA_TOOLS_LIBDIRS := /usr/lib
-   DEPENDS_UPON += pthread
-   USES_TOOLS   += pthread
-   C_FLAGS     += -DLINUX
-endif
-
-ifeq (Linux-x86, $(strip $(PLATFORM)))
-   XTRA_TOOLS_LIBDIRS := /usr/lib
-   DEPENDS_UPON += pthread
-   USES_TOOLS   += pthread
-   C_FLAGS     += -DLINUX
-endif
-
-include ../resources/standard.mk
-
-# DO NOT DELETE

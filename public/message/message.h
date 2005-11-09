@@ -1,32 +1,35 @@
+/* message.h */
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
 
+/* defines for message header struct and field
+extraction routines. 
+*/
+
+
+
+#define MESSAGE_FLAG_VALUE 1
+#define PACKET_SIZE_VALUE 8 
+#define MAX_TOTAL_MESSAGE 4092
+#define MAXDATA_VALUE (MAX_TOTAL_MESSAGE - MSG_HDR_LEN)
 
 /* private per instance data */
 #define MSG_HDR_LEN 8
 typedef struct {
-	union HEAD{
-	 struct HD {
-	  UBYTE mt;
-	  UBYTE mst;
-	  UBYTE dlenHI;
-	  UBYTE dlenLO;
-	  UBYTE res[2];
-	  UBYTE msgID;
-	  UBYTE status;
-	 } hd;
-	 UBYTE h[MSG_HDR_LEN];
-	} head;  
-  UBYTE *data;
+  union HEAD {
+    struct HD {
+      UBYTE mt;
+      UBYTE mst;
+      UBYTE dlenHI;
+      UBYTE dlenLO;
+      UBYTE res[2];
+      UBYTE msgID;
+      UBYTE status;
+    } hd;
+    UBYTE h[MSG_HDR_LEN];
+  } head;  
+  UBYTE data[MAXDATA_VALUE];
 } MESSAGE_STRUCT;
-
-#define MESSAGE_FLAG_VALUE 1
-#define PACKET_SIZE_VALUE 8 
-#define MAXDATA_VALUE (4096 - MSG_HDR_LEN)
-
-#define FPGA_TRIG_FIFO 0
-#define FPGA_CMD_FIFO 1
-#define FPGA_DATA_FIFO 2
 
 #define MEM_ERROR 0
 #define MEM_CREATE_ERROR -1

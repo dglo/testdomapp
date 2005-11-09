@@ -14,7 +14,32 @@
 #include "hal/DOM_MB_types.h"
 #include "engFormat.h"
 #include "compressEvent.h"
- 
+
+/* Pedestal waveforms */
+unsigned short atwdpedavg[2][4][128];
+unsigned short fadcpedavg[256];
+
+/*****************************************************************/
+/* 
+ * getAvgPedestals
+ *
+ * Collect average pedestals from a hit record file.  
+ */
+int getAvgPedestals(void) {
+
+    int atwd, ch, cnt;
+
+    /* FIX ME */
+    /* Just initialize to zero for now */
+    for (atwd = 0; atwd < 2; atwd++)
+        for (ch = 0; ch < 4; ch++)
+            for (cnt = 0; cnt < 128; cnt++)
+                atwdpedavg[atwd][ch][cnt] = 0;
+
+    for (cnt = 0; cnt < 256; cnt++)
+        fadcpedavg[ch] = 0;
+
+}
 /*****************************************************************/
 /* 
  * Read in a binary hit record file and compress the events into
@@ -62,7 +87,11 @@ int main(int argc, char *argv[]) {
         printf("Error calling mmap\n");
         return 1;
     }
-    
+
+    /* Get the pedestals from a hit record file */
+    /* FIX ME -- this just fills with zeros right now */
+    getAvgPedestals();
+
     /* Set the road grader thresholds */
     /* FIX ME -- parameterize or something */
     int atwd, ch;

@@ -15,21 +15,27 @@
 	$(OBJCOPY) -O binary $*-raw.elf $*.bin
 
 OBJS  = DOMdataCompression.o \
-	message.o \
+	message.o             compressEvent.o \
 	commonServices.o      domSControlRoutines.o  messageBuffers.o \
-	dataAccess.o          moniDataAccess.o \
+	dataAccess.o          moniDataAccess.o       engFormat.o  \
 	dataAccessRoutines.o  expControl.o           msgHandler.o \
 	domSControl.o         genericMsgSendRecv.o   lbm.o
 
-all: ../bin/domapp.bin.gz
+all: ../bin/testdomapp.bin.gz
+
+# domapp.o: domapp.c ../public/domapp_common/version.h
+
+#dataAccess.o: dataAccess.c ../public/dataAccess/DACmessageAPIstatus.h
+
+# expControl.o: expControl.c ../public/expControl/EXPmessageAPIstatus.h
 
 clean:
 	rm -f *.o *.i *.bin *.elf
 
 KOBJS = ../lib/crt0.o ../lib/libkernel.a
 
-domapp.elf: domapp.o $(OBJS) $(LIBHAL)
-	$(LD) --script=$(KERNELX) -o domapp.elf \
+testdomapp.elf: domapp.o $(OBJS) $(LIBHAL)
+	$(LD) --script=$(KERNELX) -o testdomapp.elf \
 		$(KOBJS) domapp.o $(OBJS) $(LIBHAL) $(SYSLIBS)
 
 ../bin/%.bin.gz: %.bin; gzip -c $< > $@

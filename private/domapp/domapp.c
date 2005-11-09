@@ -1,102 +1,53 @@
-/*
- * @mainpage domapp socket based simulation program
- * @author McP, with mods by Jacobsen
- * Based on original code by mcp.
+/**
+ * @mainpage domapp - DOM Application program
+ * @author Chuck McParland originally, now updated and maintained by 
+ * J. Jacobsen (jacobsen@npxdesigns.com)
  *
- * $Date: 2003-05-05 06:47:14 $
- *
- * @section ration Rationale
- *
- * This code provides low level initialization and communications
- * code that allow execution of the DOM application within the 
- * either the Linux or Cygwin environment.  This particular verstion
- * uses stdin and stdout to perform all message passing communications.
- * It is intended to be run by the simboot program and, therefore, will
- * have these file descriptors mapped to a pre-established IP socket.
- *
- * @section details Implementation details
- *
- * This implementation uses the standard ipcmsg messaging package to
- * simulate the use of shared message queues between the various threads
- * of the DOM application.  This facility will be replaced by a similar
- * mechanism native to the DOM MB operating system (Nucleus).
- *
- * @subsection lang Language
- *
- * For DOM application compatibility, this code is written in C. 
- *
+ * $Date: 2005-11-09 23:22:32 $
  */
 
 /**
- * @file domappFile.c
+ * @file domapp.c
  * 
- * This file contains low level initialization routines used to
- * settup and manage the environment used in simulating execution of
- * the DOM application on other platforms.
- *
- * $Revision: 1.1 $
- * $Author: mcp $
- * Based on original code by Chuck McParland
- * $Date: 2003-05-05 06:47:14 $
+ * Domapp main loop.  Dispacher for routines to handle messages,
+ * triggering, monitoring events, pedestal runs.
+ * 
+ * $Revision: 1.1.1.1 $
+ * $Author: arthur $ Based on original code by Chuck McParland
+ * $Date: 2005-11-09 23:22:32 $
 */
 
-#if defined (CYGWIN) || defined (LINUX)
-/** system include files */
-#include <sys/socket.h>
-#include <stdio.h>
-#include <time.h>   /* for time() */
-#include <signal.h> /* For signal() */
+#include <unistd.h> /* Needed for read/write */
+#include <stdio.h>  /* snprintf */
+#include <stdlib.h> /* Needed for lbm.h */
+#include <string.h> /* "              " */
 
-/* JEJ Included these files to pick up O_RDWR flags for open */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-/* JEJ */
-#include <errno.h> /** For errno, on open */
-#endif
-
-/** project include files */
-#if defined (CYGWIN) || defined (LINUX)
-#include "hal/DOM_MB_hal_simul.h"
-#else 
-#endif
-
-#include "domapp_common/packetFormatInfo.h"
-#include "domapp_common/messageAPIstatus.h"
-#include "domapp_common/commonMessageAPIstatus.h"
+// DOM-related includes
+#include "hal/DOM_MB_hal.h"
+#include "domapp_common/lbm.h"
 #include "message/message.h"
-#include "message/messageBuffers.h"
-#include "message/genericMsgSendRecv.h"	
-//#include "expControl/expControl.h"
-//#include "dataAccess/dataAccess.h"
-//#include "slowControl/domSControl.h"
+#include "dataAccess/moniDataAccess.h"
+#include "expControl/expControl.h"
+#include "dataAccess/dataAccess.h"
+#include "dataAccess/dataAccessRoutines.h"
+#include "dataAccess/moniDataAccess.h"
+#include "msgHandler/msgHandler.h"
+#include "slowControl/domSControl.h"
 
 /** fds index for stdin, stdout */
-#define STDIN 0
+#define STDIN  0
 #define STDOUT 1
 
-/** Where we get messages from : either STDIN or an open device file descriptor */
-int dom_input_file;      
-/** Where we send messages to : either STDOUT or an open device file descriptor */
-int dom_output_file;
-
-/** error reporting flags, mostly just for information */
-#define ERROR -1
-#define COM_ERROR -2
-#define COM_EOF   -3
-
-/** maximum values for some MESSAGE_STRUCT fields */
-#define MAX_TYPE 255
-#define MAX_SUBTYPE 255
-#define MAX_STATUS 255
-
-/** timeout values for select timer struct */
-#define TIMEOUT_10MSEC 10000
-#define TIMEOUT_100MSEC 100000
+/** Code for scalar averaging */
+#define FPGA_CLOCK_FREQ    40000000 /* 40 MHz */
+#define FPGA_CLOCKS_PER_MS (FPGA_CLOCK_FREQ/1000)
+#define SCALAR_PERIOD_MS   102
+#define SCALAR_PERIOD_CLKS (SCALAR_PERIOD_MS*FPGA_CLOCKS_PER_MS)
+#define SCALAR_PERIODS_PER_AVERAGE 9
 
 /** routines to handle send and receive of messages through stdin/out */
-int recvMsg(void);
-int sendMsg(void);
+int getmsg(char *);
+void putmsg(char *);
 
 /** packet driver counters, etc. For compatibility purposes only */
 ULONG PKTrecv;
@@ -113,251 +64,118 @@ ULONG tooMuchData;
 ULONG IDMismatch;
 ULONG CRCproblem;
 
-/* single message buffer pointer to use */
-MESSAGE_STRUCT *messageBuffer;
+/* Monitoring buffer, static allocation: */
+UBYTE monibuf[MONI_CIRCBUF_RECS * MONI_REC_SIZE];
 
-/**
- * Main entry that starts the DOM application off.  Should
- * never return unless error encountered.
- *
- * @param integer ID to be used as DOM ID for this simulation.
- *	If not present default value of 1234 is used.
- *
- * @return ERROR or COM_ERROR, no non-error returns possible.
- *
- * @see domappFile.c for file based version of same program.
-*/
+int main(void) {
+  char message[MAX_TOTAL_MESSAGE];
 
-static FILE *log;
+  unsigned long long t_hw_last, t_cf_last, tcur;
+  unsigned long long moni_hardware_interval, moni_config_interval;
+  unsigned long long t_scalar_last;
 
-#define pfprintf(...) /* makes it easier to comment out, 
-			 when you want less verbose messages */
-#if defined (CYGWIN) || (LINUX)
-volatile sig_atomic_t fatal_error_in_progress = 0;
-void cleanup_exit(int);
-#endif
-
-#if defined  (CYGWIN) || (LINUX)
-int main(int argc, char* argv[]) {
-#else
-void main(void) {
-#endif
-
-    /** storage */
-    char *errorMsg;
-#define DA_MAX_LOGNUM 6
-    char id6dig[DA_MAX_LOGNUM+1];
-    char logname[] = "dom_log_XXXXXX.txt"; /* Replace Xs w/ low bits of DOM ID */
-
-    int i;
-    int j;
-    int k;
-    int dataLen;
-    int send;
-    int receive;
-    int status;
-    int port;
-    int nready;
-    int dom_simulation_file; 
-
-#if defined (CYGWIN) || (LINUX)
-    fd_set fds;
-    struct timeval timeout;
-
-    setvbuf(stdout, (char *)0, _IONBF, 0);
-
-    /* read args and configure */
-    if (argc >= 3) {
-      /* insert ID and name into hal simulation for later use.
-       ID length is important, so make sure its 6 chars */
-
-      if(strlen(argv[1])!=12) {
-	halSetBoardID("123456123456");
-      } else {
-        halSetBoardID(argv[1]);
-      }
-      halSetBoardName(argv[2]);
-    } else {
-      /* must have id and name to run, make something up */
-      halSetBoardID("000000000000");
-      halSetBoardName("none");
-    }
-
-    strncpy(id6dig,halGetBoardID()+6, DA_MAX_LOGNUM);
-    id6dig[DA_MAX_LOGNUM] = '\0';
-
-    sprintf(logname,"dom_log_%s.txt", id6dig);
-    
-    log = fopen(logname, "w"); 
-    //log = stderr; /* Do this if you want messages to stderr instead
-    //		       of log file */
-
-    fprintf(log, "domapp: opened log file.\n");
-
-    /* standard hello msg, will remove eventually */
-    fprintf(log,"domapp: argc=%d, argv[0]=%s\n\r", argc, argv[0]);
-
-    /* show what dom we're running as */
-    fprintf(log,"domapp: executing as DOM #%s, %s\n\r",
-      halGetBoardID(), halGetBoardName());
-
-    /* Install signal handler so that socket is closed when
-       domapp is killed. JEJ */
-    signal(SIGHUP, &cleanup_exit);
-    signal(SIGINT, &cleanup_exit);
-    signal(SIGTERM, &cleanup_exit);
-
-    dom_input_file  = STDIN;
-    dom_output_file = STDOUT;
-#endif
-
-    /* init messageBuffers */
-    messageBuffers_init();
-
-    /* manually init all the domapp components */
-    msgHandlerInit();
-
-    //fprintf(log, "domapp: Ready to go\n");
-
-    for (;;) {
-
-        /* Flush log file out, each loop */
-        //fprintf(log, "About to read...\n");
-        //fflush(log);
-      
-        if ((status = recvMsg()) <= 0) {
-        /* error reported from receive, or EOF */
-	    //fprintf(log, "domapp: Error or EOF from recvMsg() (%d).\n",
-		    //status);
-  	    //fflush(log);
-	    return COM_ERROR;
-	} else {
-	    //fprintf(log, "domapp: Got a message.\n");
-	}
-	
-	//handle the request
-	msgHandler(messageBuffer);
-      
-	if ((status = sendMsg()) < 0) {
-	  //fprintf(log,"domapp: problem on send: status %d.\n",status);
-	  /* error reported from send */
-	  //fflush(log);
-	  return COM_ERROR;
-	}
-    }
-
-    /* this is really bad, nothing left to do but bail */
-    //errorMsg="domapp: lost socket connection";
-    //fprintf(log,"%s\n\r",errorMsg);
-    //fclose(log);
-    return 0;
-}
-
-#if defined (CYGWIN) || (LINUX)
-void cleanup_exit(int sig) {
-  /* Close input/output files/sockets.
-     Since this handler is established for more than one kind of signal, 
-     it might still get invoked recursively by delivery of some other kind
-     of signal.  Use a static variable to keep track of that. */
-  if(fatal_error_in_progress) 
-    raise(sig);
-  fatal_error_in_progress = 1;
-
-  fprintf(log,"domapp: Caught signal--closing log and socket or device file.\n");
-  fclose(log);
-  close(dom_input_file);
-  close(dom_output_file);
-
-  /* Now reraise the signal.  We reactivate the signal's
-     default handling, which is to terminate the process.
-     We could just call exit or abort,
-     but reraising the signal sets the return status
-     from the process correctly. */
-  signal(sig, SIG_DFL);
-  raise(sig);
-  //exit(0);
-}
-#endif
-
-/**
- * receive a complete message, place it into a message buffer
- * and queue it up to the msgHandler for processing.
- *
- * @return 1 if message properly handled, other wise error from
- *	communications routine.
- *
- * @see sendMsg() complimentary function.
-*/
-
-#if defined (CYGWIN) || (LINUX)
-int recvMsg() {
-  /** length of entire message to be received */
-  long msgLength;
-  /** number of bytes to be received for a given msg part */
-  int targetLength;
-  /** recv sts */
-  int sts;
-  /* pointer to message data buffer */
-  UBYTE *dataBuffer_p;
-  /* misc buffer pointer */
-  UBYTE *buffer_p;
+  t_scalar_last = t_hw_last = t_cf_last = hal_FPGA_TEST_get_local_clock();
   
-  /* receive the message header */
-  messageBuffer = messageBuffers_allocate();
-  if (messageBuffer == NULL) {
-    return ERROR;
+  ///* init messageBuffers - now use single static message buffer */
+  //messageBuffers_init();
+  
+  /* Start up monitoring system -- do this before other *Init()'s because
+     they may want to insert monitoring information */
+  moniInit(monibuf, MONI_MASK);
+  moniRunTests();
+  //moniTestAllMonitorRecords();
+
+  /* manually init all the domapp components */
+  msgHandlerInit();
+  domSControlInit();
+  expControlInit();
+  dataAccessInit();
+  
+  /* Get buffer, temporary replacement for lookback mem. */
+  if(lbm_init()) {
+    mprintf("Malloc of LBM buffer failed");
   }
+  int numTriggerChecks = 0;
   
-  /* save data buffer address for  this message buffer */
-  dataBuffer_p = Message_getData(messageBuffer);
+  halEnableBarometer(); /* Increases power consumption slightly but 
+			   enables power to be read out */
+  halStartReadTemp();
+  USHORT temperature = 0; // Chilly
 
-  fprintf(log, "domapp: about to gmsr_recvMessageGeneric.\n");
+  long spe_sum = 0, mpe_sum = 0;
+  int numscalars = 0, quorum = 0;
 
-  /* Read in the whole message, now using generic functions */
-  sts = gmsr_recvMessageGeneric(dom_input_file, messageBuffer, dataBuffer_p, 0);
-  if(sts <= 0) {
-    /* patch up the message buffer and release it */
-    Message_setData(messageBuffer, dataBuffer_p, MAXDATA_VALUE);
-    messageBuffers_release(messageBuffer);
-    fprintf(log, "domapp: got sts %d in recv\n",sts);
-    return sts == 0 ? COM_EOF : sts;
-  } 
-  
+  for (;;) {
+    
+    /* Insert periodic monitoring records */
+    tcur = hal_FPGA_TEST_get_local_clock();      
+    moni_hardware_interval = moniGetHdwrIval();
+    moni_config_interval   = moniGetConfIval();
+
+    long long dthw = tcur-t_hw_last;    
+    long long dtcf = tcur-t_cf_last;
+    long long dtsc = tcur-t_scalar_last;
+
+    if(!quorum && dtsc > SCALAR_PERIOD_CLKS) { /* Handle scalar averaging */
+      t_scalar_last = tcur;
+      int spe = hal_FPGA_TEST_get_spe_rate();
+      int mpe = hal_FPGA_TEST_get_mpe_rate();
+      if(spe >= 0 && mpe >= 0) {
+	numscalars++;
+	spe_sum += spe;
+	mpe_sum += mpe;
+	if(numscalars >= SCALAR_PERIODS_PER_AVERAGE) {
+	  quorum = 1;
+	}
+      }
+    }
+
+    /* Hardware monitoring */
+    if(moni_hardware_interval > 0 && (dthw < 0 || dthw > moni_hardware_interval)) {
+      /* Update temperature if it's done; start next one */
+      if(halReadTempDone()) {
+	temperature = halFinishReadTemp();
+	halStartReadTemp();
+      }
+      moniInsertHdwrStateMessage(tcur, temperature, quorum?spe_sum:0, quorum?mpe_sum:0);
+      quorum = numscalars = spe_sum = mpe_sum = 0;
+      t_hw_last = tcur;
+    }
+    
+    /* Software monitoring */
+    if(moni_config_interval > 0 && (dtcf < 0 || dtcf > moni_config_interval)) {
+      moniInsertConfigStateMessage(tcur);
+      t_cf_last = tcur;
+    }
+    
+    /* Check for new message */
+    if(halIsInputData()) {
+      if(getmsg(message)) msgHandler((MESSAGE_STRUCT *) message); 
+      putmsg(message);
+    } else if(lbm_ok()) {
+      numTriggerChecks++;
+      bufferLBMTriggers();
+    } 
+  } /* for(;;) */
+}
+
+
+void putmsg(char *buf) {
+  int len = Message_dataLen((MESSAGE_STRUCT *) buf);
+  if(len > MAXDATA_VALUE) return;
+  int nw = len + MSG_HDR_LEN;
+  write(STDOUT, buf, nw);
+}
+
+
+int getmsg(char *buf) {
+  int nh = read(STDIN, buf, MSG_HDR_LEN);
+  if(nh != MSG_HDR_LEN) return 0;
+  int len = Message_dataLen((MESSAGE_STRUCT *) buf);
+  if(len > MAXDATA_VALUE) return 0;
+  if(len == 0) return 1;
+  int np = read(STDIN, buf+nh, len);
+  if(np != len) return 0;
   return 1;
 }
 
-/**
- * Check msgHandler message queue for outgoing messages. If
- * one is present, assemble message and send it.
- *
- * @return 0  no errors, otherwise return value of low level 
- * 	communications routine.
- *
- * @see recvMsg()
-*/
-
-
-int sendMsg() {
-  int sts;
-  long sendLen;
-  
-  //fprintf(log, "domapp: About to Message_receive_nonblock().\n");
-
-    
-    fprintf(log, "domapp: have a message to send (messageBuffer == %p)\n",
-    	    messageBuffer);
-
-    /* Send out the message using generic function */
-    sts = gmsr_sendMessageGeneric(dom_output_file, messageBuffer);
-
-    /* always delete the message buffer-even if there was a com error */
-    messageBuffers_release(messageBuffer);
-    
-    fprintf(log, "domapp: Send status was %d.\n",sts);
-    
-    if(sts < 0) {
-      return sts;
-    }
-  return 0;
-}
-#endif

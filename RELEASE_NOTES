@@ -1,6 +1,41 @@
 testdomapp Release Notes -- jacobsen@npxdesigns.com
 
 =========================================================
+testdomapp V02-02-01
+
+- John Kelley contributions to SW compression (currently
+  not tested, not used)
+- Stuff for new flasher API
+- Some domapp->testdomapp renaming
+
+=========================================================
+testdomapp V02-02-00
+
+- Fix domapp to use new HAL FB code (minor interface chg.
+  from John Kelley)
+- Flasher board support
+
+=========================================================
+testdomapp pole-fb-01
+
+- Flasher board support, trig type 3, bit 4 set in engineering
+  event
+
+=========================================================
+testdomapp pole-fb-00
+
+- Flasher board support, trig type 2
+
+=========================================================
+testdomapp V02-00-01 2004-12-??
+
+- Implemented selective LC enable.  
+- Updated engineering format to Format 2.  
+- Added LC new state change monitoring events.
+- Added testing subdirectory with domapp_multitest.pl 
+  test script.
+
+=========================================================
 
 testdomapp V02-00-00 2004-11-20
 

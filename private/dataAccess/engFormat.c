@@ -187,8 +187,21 @@ USHORT getEngFADCCount(const UBYTE *buf) {
  * Returns the least-significant 32b of the
  * timestamp.
  */
+
+ULONG swapLong(const UBYTE *buf) {
+  return (((buf[0]) << 24)
+          |((buf[1]) << 16)
+          |((buf[2]) << 8)
+          |((buf[3]) << 0));
+}
+
+USHORT swapShort(const UBYTE *buf) {
+    return (((buf[0]) << 8)
+            |((buf[1]) << 0));
+}
+
 ULONG getEngTimestampLo(const UBYTE *buf) {
-    return *((ULONG *)(buf+12));
+    return swapLong(buf+12);
 }
 
 /*
@@ -197,7 +210,8 @@ ULONG getEngTimestampLo(const UBYTE *buf) {
  * Returns the most-significant 16b of the timestamp.
  */
 USHORT getEngTimestampHi(const UBYTE *buf) {
-    return *((USHORT *)(buf+10));
+  //return *((USHORT *)(buf+10));
+  return swapShort(buf+10);
 }
 
 /*
@@ -358,10 +372,18 @@ void setEngFADCCount(UBYTE *buf, UBYTE cnt) {
  * setEngTimestampLo
  *
  * Sets the least-significant 32b of the
- * timestamp.
+ * timestamp.  Must unfortunately swap yet again (JEJ)
  */
-void setEngTimestampLo(UBYTE *buf, ULONG time_lo) {    
-    *((ULONG *)(buf+12)) = time_lo;
+void setEngTimestampLo(UBYTE *buf, ULONG time_lo) {   
+#ifdef LE
+  *((ULONG *)(buf+12)) = time_lo;
+#else
+  int of    = 12;
+  buf[of+3] = ((time_lo >> 0)  & 0xFF);
+  buf[of+2] = ((time_lo >> 8)  & 0xFF);
+  buf[of+1] = ((time_lo >> 16) & 0xFF);
+  buf[of+0] = ((time_lo >> 24) & 0xFF);
+#endif
 }
 
 /*
@@ -370,7 +392,13 @@ void setEngTimestampLo(UBYTE *buf, ULONG time_lo) {
  * Sets the most-significant 16b of the timestamp.
  */
 void setEngTimestampHi(UBYTE *buf, USHORT time_hi) {    
-    *((USHORT *)(buf+10)) = time_hi;
+#ifdef LE
+  *((USHORT *)(buf+10)) = time_hi;
+#else
+  int of = 10;
+  buf[of+1] = ((time_hi >> 0) & 0xFF);
+  buf[of+0] = ((time_hi >> 8) & 0xFF);
+#endif
 }
 
 /*
@@ -389,15 +417,21 @@ void setEngTriggerFlag(UBYTE *buf, UBYTE flag) {
  *
  */
 void setEngEventLength(UBYTE *buf, USHORT len) {
+#ifdef LE
     *((USHORT *)buf) = len;
+#else
+    buf[1] = ((len >> 0) & 0xFF);
+    buf[0] = ((len >> 8) & 0xFF);
+#endif
 }
 
 /*
  * setEngEventFormat
  *
- * Sets event format to 0x1.
+ * Sets event format to BIG ENDIAN (JEJ)
  *
  */
 void setEngEventFormat(UBYTE *buf) {
-    *((USHORT *)(buf+2)) = 0x1;
+    buf[2] = 0x00;
+    buf[3] = 0x01;
 }

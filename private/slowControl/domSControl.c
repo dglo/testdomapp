@@ -400,7 +400,12 @@ void domSControl(MESSAGE_STRUCT *M) {
 	    case DSC_MUX_SELECT:
 		/* select mux channel for ATWD channel 3 */
 		selected_mux_channel = data[0];
-		halSelectAnalogMuxInput(selected_mux_channel);
+                if(selected_mux_channel == 0xFF) {
+                    halDisableAnalogMux(); /* Per John Kelley request */
+                } else {
+                    halSelectAnalogMuxInput(selected_mux_channel);
+                }
+		
 		Message_setDataLen(M,0);
 		Message_setStatus(M,SUCCESS);
 		break;

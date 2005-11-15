@@ -3,7 +3,7 @@
  * @author Chuck McParland originally, now updated and maintained by 
  * J. Jacobsen (jacobsen@npxdesigns.com)
  *
- * $Date: 2005-11-09 23:22:32 $
+ * $Date: 2005-11-15 16:59:05 $
  */
 
 /**
@@ -12,9 +12,9 @@
  * Domapp main loop.  Dispacher for routines to handle messages,
  * triggering, monitoring events, pedestal runs.
  * 
- * $Revision: 1.1.1.1 $
+ * $Revision: 1.1.1.2 $
  * $Author: arthur $ Based on original code by Chuck McParland
- * $Date: 2005-11-09 23:22:32 $
+ * $Date: 2005-11-15 16:59:05 $
 */
 
 #include <unistd.h> /* Needed for read/write */
@@ -97,6 +97,8 @@ int main(void) {
   }
   int numTriggerChecks = 0;
   
+  halDisableAnalogMux(); /* John Kelley suggests explicitly disabling this by default */
+
   halEnableBarometer(); /* Increases power consumption slightly but 
 			   enables power to be read out */
   halStartReadTemp();

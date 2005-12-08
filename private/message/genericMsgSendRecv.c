@@ -2,10 +2,10 @@
  *   @file genericMsgSendRecv.c
  * Methods to send and receive messages either over a socket or 
  * using the device driver files
- * $Revision: 1.1.1.1 $
+ * $Revision: 1.1.1.2 $
  * @author John Jacobsen, John J. IT Svcs, for LBNL and IceCube
  * Parts of this are based on code by Chuck McParland
- * $Date: 2005-11-09 23:22:32 $
+ * $Date: 2005-12-08 19:15:06 $
  */
 
 #include <string.h>

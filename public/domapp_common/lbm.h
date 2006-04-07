@@ -3,7 +3,7 @@
    Start with malloc version of LBM
 
    Jacobsen 8/10/04 jacobsen@npxdesigns.com
-   $Id: lbm.h,v 1.1.1.6 2006-03-29 19:30:37 arthur Exp $
+   $Id: lbm.h,v 1.1.1.7 2006-04-07 17:50:31 arthur Exp $
 
 */
 #ifndef __LBM_H__

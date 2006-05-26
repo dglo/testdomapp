@@ -3,7 +3,7 @@
  * @author Chuck McParland originally, now updated and maintained by 
  * J. Jacobsen (jacobsen@npxdesigns.com)
  *
- * $Date: 2006-05-09 22:42:26 $
+ * $Date: 2006-05-26 20:49:49 $
  */
 
 /**
@@ -12,9 +12,9 @@
  * Domapp main loop.  Dispacher for routines to handle messages,
  * triggering, monitoring events, pedestal runs.
  * 
- * $Revision: 1.1.1.11 $
+ * $Revision: 1.1.1.12 $
  * $Author: arthur $ Based on original code by Chuck McParland
- * $Date: 2006-05-09 22:42:26 $
+ * $Date: 2006-05-26 20:49:49 $
 */
 
 #include <unistd.h> /* Needed for read/write */

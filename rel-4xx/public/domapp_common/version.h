@@ -1,0 +1,1 @@
+#define DOMAPP_RELEASE "V02-02-01"
